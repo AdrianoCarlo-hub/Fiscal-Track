@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -49,10 +50,6 @@ public class NotificationController {
         return consulterUseCase.parStatut(statut).stream().map(this::toMap).toList();
     }
 
-    /**
-     * Genere les rappels J-7 (ou J-1) pour les obligations dont l'echeance
-     * approche. Utilise principalement par le scheduler et en test manuel.
-     */
     @PostMapping("/generer-rappels")
     @PreAuthorize("hasAnyRole('AGENT_GESTION','RESPONSABLE','ADMIN')")
     public ResponseEntity<Map<String, Object>> genererRappels(
@@ -64,9 +61,6 @@ public class NotificationController {
         ));
     }
 
-    /**
-     * Envoie toutes les notifications en attente.
-     */
     @PostMapping("/envoyer-en-attente")
     @PreAuthorize("hasAnyRole('AGENT_GESTION','AGENT_RECETTE','ADMIN')")
     public ResponseEntity<Map<String, Object>> envoyerEnAttente() {
@@ -74,9 +68,6 @@ public class NotificationController {
         return ResponseEntity.ok(Map.of("nombreEnvoyes", nombreEnvoyes));
     }
 
-    /**
-     * Envoie une notification specifique.
-     */
     @PostMapping("/{id}/envoyer")
     @PreAuthorize("hasAnyRole('AGENT_GESTION','AGENT_RECETTE','ADMIN')")
     public ResponseEntity<Map<String, Object>> envoyerUne(@PathVariable Long id) {
@@ -84,18 +75,18 @@ public class NotificationController {
     }
 
     private Map<String, Object> toMap(Notification n) {
-        return Map.of(
-                "idNotif", n.getIdNotif(),
-                "idObligationFiscale", n.getIdObligationFiscale() == null ? 0 : n.getIdObligationFiscale(),
-                "idCompte", n.getIdCompte() == null ? 0 : n.getIdCompte(),
-                "nif", n.getNif(),
-                "idAgent", n.getIdAgent() == null ? "" : n.getIdAgent(),
-                "typeRelance", n.getTypeRelance().getCode(),
-                "messageContenu", n.getMessageContenu(),
-                "dateEnvoiPrevue", n.getDateEnvoiPrevue().toString(),
-                "dateEnvoiEffective", n.getDateEnvoiEffective() == null ? "" : n.getDateEnvoiEffective().toString(),
-                "canalEnvoi", n.getCanalEnvoi().name(),
-                "statutEnvoi", n.getStatutEnvoi().name()
-        );
+        Map<String, Object> map = new HashMap<>();
+        map.put("idNotif", n.getIdNotif());
+        map.put("idObligationFiscale", n.getIdObligationFiscale() == null ? 0 : n.getIdObligationFiscale());
+        map.put("idCompte", n.getIdCompte() == null ? 0 : n.getIdCompte());
+        map.put("nif", n.getNif());
+        map.put("idAgent", n.getIdAgent() == null ? "" : n.getIdAgent());
+        map.put("typeRelance", n.getTypeRelance().getCode());
+        map.put("messageContenu", n.getMessageContenu());
+        map.put("dateEnvoiPrevue", n.getDateEnvoiPrevue().toString());
+        map.put("dateEnvoiEffective", n.getDateEnvoiEffective() == null ? "" : n.getDateEnvoiEffective().toString());
+        map.put("canalEnvoi", n.getCanalEnvoi().name());
+        map.put("statutEnvoi", n.getStatutEnvoi().name());
+        return map;
     }
 }

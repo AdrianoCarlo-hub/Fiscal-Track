@@ -12,7 +12,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.Generated;
-import org.hibernate.annotations.GenerationTime;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -49,11 +48,11 @@ public class CompteCourantFiscalEntity {
     @Column(name = "montant_paye", nullable = false, precision = 15, scale = 2)
     private BigDecimal montantPaye;
 
-    @Generated(GenerationTime.ALWAYS)
+    @Generated
     @Column(name = "montant_total_du", insertable = false, updatable = false, precision = 15, scale = 2)
     private BigDecimal montantTotalDu;
 
-    @Generated(GenerationTime.ALWAYS)
+    @Generated
     @Column(name = "reste_a_recouvrer", insertable = false, updatable = false, precision = 15, scale = 2)
     private BigDecimal resteARecouvrer;
 
