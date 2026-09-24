@@ -6,6 +6,7 @@ import mg.dgi.fiscaltrack.infrastructure.persistence.mapper.CompteCourantFiscalM
 import mg.dgi.fiscaltrack.infrastructure.persistence.repository.CompteCourantFiscalJpaRepository;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -74,5 +75,20 @@ public class CompteCourantFiscalRepositoryAdapter implements CompteCourantFiscal
     @Override
     public void deleteById(Long id) {
         jpaRepository.deleteById(id);
+    }
+
+    @Override
+    public List<CompteCourantFiscal> findEligiblesTitrePerception(LocalDate seuilEcheance) {
+        return jpaRepository.findEligiblesTitrePerception(seuilEcheance).stream()
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<CompteCourantFiscal> findEligiblesAtd(LocalDate seuilUpdatedAt) {
+        OffsetDateTime seuil = seuilUpdatedAt.atStartOfDay().atOffset(OffsetDateTime.now().getOffset());
+        return jpaRepository.findEligiblesAtd(seuil).stream()
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
     }
 }
