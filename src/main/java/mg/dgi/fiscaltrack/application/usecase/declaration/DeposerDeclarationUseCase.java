@@ -3,6 +3,7 @@ package mg.dgi.fiscaltrack.application.usecase.declaration;
 import mg.dgi.fiscaltrack.application.port.out.CompteCourantFiscalRepositoryPort;
 import mg.dgi.fiscaltrack.application.port.out.DeclarationRepositoryPort;
 import mg.dgi.fiscaltrack.application.port.out.ObligationFiscaleRepositoryPort;
+import mg.dgi.fiscaltrack.application.usecase.historique.EnregistrerActionUseCase;
 import mg.dgi.fiscaltrack.domain.enums.StatutDeclaration;
 import mg.dgi.fiscaltrack.domain.enums.StatutRecouvrement;
 import mg.dgi.fiscaltrack.domain.enums.StatutValidation;
@@ -24,13 +25,16 @@ public class DeposerDeclarationUseCase {
     private final DeclarationRepositoryPort declarationRepositoryPort;
     private final ObligationFiscaleRepositoryPort obligationRepositoryPort;
     private final CompteCourantFiscalRepositoryPort compteRepositoryPort;
+    private final EnregistrerActionUseCase enregistrerActionUseCase;
 
     public DeposerDeclarationUseCase(DeclarationRepositoryPort declarationRepositoryPort,
                                       ObligationFiscaleRepositoryPort obligationRepositoryPort,
-                                      CompteCourantFiscalRepositoryPort compteRepositoryPort) {
+                                      CompteCourantFiscalRepositoryPort compteRepositoryPort,
+                                      EnregistrerActionUseCase enregistrerActionUseCase) {
         this.declarationRepositoryPort = declarationRepositoryPort;
         this.obligationRepositoryPort = obligationRepositoryPort;
         this.compteRepositoryPort = compteRepositoryPort;
+        this.enregistrerActionUseCase = enregistrerActionUseCase;
     }
 
     @Transactional
@@ -60,12 +64,10 @@ public class DeposerDeclarationUseCase {
                 .build();
         Declaration declarationSauvee = declarationRepositoryPort.save(declaration);
 
-        // Mise a jour du statut de l'obligation
         obligation.setStatutDeclaration(StatutDeclaration.DEPOSE);
         obligation.setDateDepotEffectif(LocalDate.now());
         obligationRepositoryPort.save(obligation);
 
-        // RG5 : creation automatique de la ligne de compte courant fiscal
         CompteCourantFiscal compte = CompteCourantFiscal.builder()
                 .idDeclaration(declarationSauvee.getIdDeclaration())
                 .nif(obligation.getNif())
@@ -76,6 +78,11 @@ public class DeposerDeclarationUseCase {
                 .statutRecouvrement(StatutRecouvrement.NON_SOLDE)
                 .build();
         compteRepositoryPort.save(compte);
+
+        enregistrerActionUseCase.execute(
+                obligation.getNif(),
+                "DEPOT_DECLARATION",
+                "Declaration #" + declarationSauvee.getIdDeclaration() + " pour obligation #" + idObligation);
 
         return declarationSauvee;
     }

@@ -2,6 +2,7 @@ package mg.dgi.fiscaltrack.application.usecase.paiement;
 
 import mg.dgi.fiscaltrack.application.port.out.CompteCourantFiscalRepositoryPort;
 import mg.dgi.fiscaltrack.application.port.out.PaiementRepositoryPort;
+import mg.dgi.fiscaltrack.application.usecase.historique.EnregistrerActionUseCase;
 import mg.dgi.fiscaltrack.domain.enums.ModePaiement;
 import mg.dgi.fiscaltrack.domain.enums.StatutRecouvrement;
 import mg.dgi.fiscaltrack.domain.exception.PaiementInvalideException;
@@ -18,11 +19,14 @@ public class EnregistrerPaiementUseCase {
 
     private final PaiementRepositoryPort paiementRepositoryPort;
     private final CompteCourantFiscalRepositoryPort compteRepositoryPort;
+    private final EnregistrerActionUseCase enregistrerActionUseCase;
 
     public EnregistrerPaiementUseCase(PaiementRepositoryPort paiementRepositoryPort,
-                                       CompteCourantFiscalRepositoryPort compteRepositoryPort) {
+                                       CompteCourantFiscalRepositoryPort compteRepositoryPort,
+                                       EnregistrerActionUseCase enregistrerActionUseCase) {
         this.paiementRepositoryPort = paiementRepositoryPort;
         this.compteRepositoryPort = compteRepositoryPort;
+        this.enregistrerActionUseCase = enregistrerActionUseCase;
     }
 
     @Transactional
@@ -37,17 +41,14 @@ public class EnregistrerPaiementUseCase {
         }
         if (referenceTransaction != null
                 && paiementRepositoryPort.existsByReferenceTransaction(referenceTransaction)) {
-            throw new PaiementInvalideException(
-                    "Une transaction avec cette reference existe deja");
+            throw new PaiementInvalideException("Une transaction avec cette reference existe deja");
         }
 
         CompteCourantFiscal compte = compteRepositoryPort.findById(idCompte)
-                .orElseThrow(() -> new PaiementInvalideException(
-                        "Compte courant fiscal introuvable : " + idCompte));
+                .orElseThrow(() -> new PaiementInvalideException("Compte courant fiscal introuvable : " + idCompte));
 
         if (compte.getStatutRecouvrement() == StatutRecouvrement.SOLDE) {
-            throw new PaiementInvalideException(
-                    "Ce compte est deja totalement solde");
+            throw new PaiementInvalideException("Ce compte est deja totalement solde");
         }
 
         BigDecimal reste = compte.getResteARecouvrer();
@@ -57,8 +58,7 @@ public class EnregistrerPaiementUseCase {
                     .subtract(compte.getMontantPaye());
         }
         if (montantVerse.compareTo(reste) > 0) {
-            throw new PaiementInvalideException(
-                    "Le montant verse depasse le reste a recouvrer : " + reste);
+            throw new PaiementInvalideException("Le montant verse depasse le reste a recouvrer : " + reste);
         }
 
         Paiement paiement = Paiement.builder()
@@ -70,11 +70,15 @@ public class EnregistrerPaiementUseCase {
                 .build();
         Paiement paiementSauve = paiementRepositoryPort.save(paiement);
 
-        // Mise a jour du compte courant : cumul du montant paye
         BigDecimal nouveauMontantPaye = compte.getMontantPaye().add(montantVerse);
         compte.setMontantPaye(nouveauMontantPaye);
         compte.setStatutRecouvrement(calculerStatut(compte, nouveauMontantPaye));
         compteRepositoryPort.save(compte);
+
+        enregistrerActionUseCase.execute(
+                compte.getNif(),
+                "ENREGISTREMENT_PAIEMENT",
+                "Paiement #" + paiementSauve.getIdPaiement() + " de " + montantVerse + " Ar sur compte #" + idCompte);
 
         return paiementSauve;
     }

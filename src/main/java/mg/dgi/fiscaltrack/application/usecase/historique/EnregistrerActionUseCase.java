@@ -1,26 +1,34 @@
 package mg.dgi.fiscaltrack.application.usecase.historique;
 
+import mg.dgi.fiscaltrack.application.port.out.HistoriqueActionRepositoryPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-
-import java.time.OffsetDateTime;
 
 @Service
 public class EnregistrerActionUseCase {
 
     private static final Logger logger = LoggerFactory.getLogger(EnregistrerActionUseCase.class);
 
+    private final HistoriqueActionRepositoryPort historiqueRepositoryPort;
+
+    public EnregistrerActionUseCase(HistoriqueActionRepositoryPort historiqueRepositoryPort) {
+        this.historiqueRepositoryPort = historiqueRepositoryPort;
+    }
+
     /**
-     * Enregistre une action utilisateur dans les logs applicatifs.
-     * Permet de tracer qui a fait quoi et quand (F56-F57).
+     * Enregistre une action utilisateur dans la table historique_actions.
      */
     public void execute(String utilisateur, String action, String details) {
         if (utilisateur == null || action == null) {
-            throw new IllegalArgumentException("L'utilisateur et l'action sont obligatoires");
+            logger.warn("[AUDIT] Tentative d'enregistrement sans utilisateur ou action");
+            return;
         }
-        String message = String.format("[AUDIT] %s | utilisateur=%s | action=%s | details=%s",
-                OffsetDateTime.now(), utilisateur, action, details != null ? details : "-");
-        logger.info(message);
+        try {
+            historiqueRepositoryPort.enregistrer(utilisateur, action, details);
+            logger.debug("[AUDIT] {} | {} | {}", utilisateur, action, details);
+        } catch (Exception e) {
+            logger.error("[AUDIT] Erreur enregistrement action : {}", e.getMessage());
+        }
     }
 }
