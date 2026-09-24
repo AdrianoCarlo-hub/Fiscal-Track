@@ -37,10 +37,12 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> {})
+                // Desactive la page de login par defaut et l'authentification Basic
+                .formLogin(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Endpoints publics
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/swagger-ui/**",
@@ -48,12 +50,9 @@ public class SecurityConfig {
                                 "/api-docs/**",
                                 "/v3/api-docs/**"
                         ).permitAll()
-                        // Endpoints d'administration
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        // Endpoints BI reserves au responsable et a l'admin
                         .requestMatchers("/api/dashboard/**")
-                                .hasAnyRole("RESPONSABLE", "ADMIN", "DIRECTEUR")
-                        // Tous les autres endpoints necessitent d'etre authentifie
+                                .hasAnyRole("RESPONSABLE", "ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter,
