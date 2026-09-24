@@ -3,6 +3,8 @@ package mg.dgi.fiscaltrack.infrastructure.scheduler;
 import mg.dgi.fiscaltrack.application.port.out.CompteCourantFiscalRepositoryPort;
 import mg.dgi.fiscaltrack.application.port.out.DeclarationRepositoryPort;
 import mg.dgi.fiscaltrack.application.usecase.notification.EnvoyerNotificationUseCase;
+import mg.dgi.fiscaltrack.application.usecase.notification.GenererAvisRetardUseCase;
+import mg.dgi.fiscaltrack.application.usecase.notification.GenererLettreRelanceUseCase;
 import mg.dgi.fiscaltrack.application.usecase.obligation.IdentifierRetardsUseCase;
 import mg.dgi.fiscaltrack.application.usecase.penalite.CalculerPenaliteUseCase;
 import mg.dgi.fiscaltrack.domain.model.ObligationFiscale;
@@ -21,26 +23,27 @@ public class DetectionRetardScheduler {
     private final IdentifierRetardsUseCase identifierRetardsUseCase;
     private final EnvoyerNotificationUseCase envoyerNotificationUseCase;
     private final CalculerPenaliteUseCase calculerPenaliteUseCase;
+    private final GenererAvisRetardUseCase genererAvisRetardUseCase;
+    private final GenererLettreRelanceUseCase genererLettreRelanceUseCase;
     private final DeclarationRepositoryPort declarationRepositoryPort;
     private final CompteCourantFiscalRepositoryPort compteCourantFiscalRepositoryPort;
 
     public DetectionRetardScheduler(IdentifierRetardsUseCase identifierRetardsUseCase,
                                      EnvoyerNotificationUseCase envoyerNotificationUseCase,
                                      CalculerPenaliteUseCase calculerPenaliteUseCase,
+                                     GenererAvisRetardUseCase genererAvisRetardUseCase,
+                                     GenererLettreRelanceUseCase genererLettreRelanceUseCase,
                                      DeclarationRepositoryPort declarationRepositoryPort,
                                      CompteCourantFiscalRepositoryPort compteCourantFiscalRepositoryPort) {
         this.identifierRetardsUseCase = identifierRetardsUseCase;
         this.envoyerNotificationUseCase = envoyerNotificationUseCase;
         this.calculerPenaliteUseCase = calculerPenaliteUseCase;
+        this.genererAvisRetardUseCase = genererAvisRetardUseCase;
+        this.genererLettreRelanceUseCase = genererLettreRelanceUseCase;
         this.declarationRepositoryPort = declarationRepositoryPort;
         this.compteCourantFiscalRepositoryPort = compteCourantFiscalRepositoryPort;
     }
 
-    /**
-     * Tous les jours a 9h00 : identifie les obligations en retard,
-     * passe leur statut a RETARD, recalcule les penalites (RC4-RC7)
-     * puis envoie les notifications associees.
-     */
     @Scheduled(cron = "0 0 9 * * *")
     public void executerDetectionRetards() {
         logger.info("[SCHEDULER] Debut de la detection des retards");
@@ -52,20 +55,19 @@ public class DetectionRetardScheduler {
             int penalitesCalculees = appliquerPenalites(obligationsEnRetard);
             logger.info("[SCHEDULER] {} penalites recalculees (RC4-RC7)", penalitesCalculees);
 
+            int avisJ1 = genererAvisRetardUseCase.execute().size();
+            logger.info("[SCHEDULER] {} avis de retard J+1 generes", avisJ1);
+
+            int lettresJ8 = genererLettreRelanceUseCase.execute().size();
+            logger.info("[SCHEDULER] {} lettres de relance J+8 generees", lettresJ8);
+
             int envoyes = envoyerNotificationUseCase.execute();
-            logger.info("[SCHEDULER] {} notifications de retard envoyees", envoyes);
+            logger.info("[SCHEDULER] {} notifications envoyees", envoyes);
         } catch (Exception e) {
             logger.error("[SCHEDULER] Erreur lors de la detection des retards", e);
         }
     }
 
-    /**
-     * RC4-RC7 : apres avoir marque une obligation en RETARD, on recalcule
-     * la penalite sur le compte courant fiscal associe.
-     * Chaine : obligation -> declaration -> compte courant.
-     * Une obligation sans declaration deposee n'a pas de compte courant,
-     * elle est ignoree silencieusement.
-     */
     private int appliquerPenalites(List<ObligationFiscale> obligations) {
         int compteur = 0;
         for (ObligationFiscale obligation : obligations) {
