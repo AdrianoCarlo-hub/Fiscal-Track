@@ -4,6 +4,8 @@ import mg.dgi.fiscaltrack.application.port.out.PaiementRepositoryPort;
 import mg.dgi.fiscaltrack.domain.model.Paiement;
 import mg.dgi.fiscaltrack.infrastructure.persistence.mapper.PaiementMapper;
 import mg.dgi.fiscaltrack.infrastructure.persistence.repository.PaiementJpaRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.time.OffsetDateTime;
@@ -45,6 +47,11 @@ public class PaiementRepositoryAdapter implements PaiementRepositoryPort {
         return jpaRepository.findAll().stream()
                 .map(mapper::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<Paiement> findAll(Pageable pageable) {
+        return jpaRepository.findAll(pageable).map(mapper::toDomain);
     }
 
     @Override

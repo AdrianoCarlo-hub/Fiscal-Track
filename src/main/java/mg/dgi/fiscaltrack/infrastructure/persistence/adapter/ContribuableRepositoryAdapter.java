@@ -4,6 +4,8 @@ import mg.dgi.fiscaltrack.application.port.out.ContribuableRepositoryPort;
 import mg.dgi.fiscaltrack.domain.model.Contribuable;
 import mg.dgi.fiscaltrack.infrastructure.persistence.mapper.ContribuableMapper;
 import mg.dgi.fiscaltrack.infrastructure.persistence.repository.ContribuableJpaRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.time.OffsetDateTime;
@@ -46,6 +48,11 @@ public class ContribuableRepositoryAdapter implements ContribuableRepositoryPort
     }
 
     @Override
+    public Page<Contribuable> findAll(Pageable pageable) {
+        return jpaRepository.findAll(pageable).map(mapper::toDomain);
+    }
+
+    @Override
     public void deleteByNif(String nif) {
         jpaRepository.deleteById(nif);
     }
@@ -60,5 +67,10 @@ public class ContribuableRepositoryAdapter implements ContribuableRepositoryPort
         return jpaRepository.search(query).stream()
                 .map(mapper::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<Contribuable> search(String query, Pageable pageable) {
+        return jpaRepository.searchPaginated(query, pageable).map(mapper::toDomain);
     }
 }

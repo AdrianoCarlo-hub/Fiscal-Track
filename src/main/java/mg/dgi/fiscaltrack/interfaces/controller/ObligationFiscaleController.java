@@ -6,6 +6,9 @@ import mg.dgi.fiscaltrack.application.usecase.obligation.GenererObligationsUseCa
 import mg.dgi.fiscaltrack.application.usecase.obligation.IdentifierRetardsUseCase;
 import mg.dgi.fiscaltrack.domain.model.ObligationFiscale;
 import mg.dgi.fiscaltrack.interfaces.dto.response.ObligationResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -36,6 +39,12 @@ public class ObligationFiscaleController {
     @PreAuthorize("hasAnyRole('AGENT_GESTION','AGENT_RECETTE','RESPONSABLE','ADMIN')")
     public List<ObligationResponse> lister() {
         return consulterUseCase.toutes().stream().map(this::toResponse).toList();
+    }
+
+    @GetMapping("/paginated")
+    @PreAuthorize("hasAnyRole('AGENT_GESTION','AGENT_RECETTE','RESPONSABLE','ADMIN')")
+    public Page<ObligationResponse> listerPagine(@PageableDefault(size = 20) Pageable pageable) {
+        return consulterUseCase.toutesPaginees(pageable).map(this::toResponse);
     }
 
     @GetMapping("/{id}")

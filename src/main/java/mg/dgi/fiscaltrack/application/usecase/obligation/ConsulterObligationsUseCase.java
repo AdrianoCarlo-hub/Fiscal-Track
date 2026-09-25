@@ -3,6 +3,8 @@ package mg.dgi.fiscaltrack.application.usecase.obligation;
 import mg.dgi.fiscaltrack.application.port.out.ObligationFiscaleRepositoryPort;
 import mg.dgi.fiscaltrack.domain.exception.ObligationIntrouvableException;
 import mg.dgi.fiscaltrack.domain.model.ObligationFiscale;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -23,6 +25,10 @@ public class ConsulterObligationsUseCase {
 
     public List<ObligationFiscale> toutes() {
         return repositoryPort.findAll();
+    }
+
+    public Page<ObligationFiscale> toutesPaginees(Pageable pageable) {
+        return repositoryPort.findAll(pageable);
     }
 
     public List<ObligationFiscale> parContribuable(String nif) {

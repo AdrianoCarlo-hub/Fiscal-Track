@@ -2,6 +2,8 @@ package mg.dgi.fiscaltrack.application.usecase.contribuable;
 
 import mg.dgi.fiscaltrack.application.port.out.ContribuableRepositoryPort;
 import mg.dgi.fiscaltrack.domain.model.Contribuable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -20,5 +22,12 @@ public class RechercherContribuableUseCase {
             return repositoryPort.findAll();
         }
         return repositoryPort.search(critere.trim());
+    }
+
+    public Page<Contribuable> executePagine(String critere, Pageable pageable) {
+        if (critere == null || critere.isBlank()) {
+            return repositoryPort.findAll(pageable);
+        }
+        return repositoryPort.search(critere.trim(), pageable);
     }
 }

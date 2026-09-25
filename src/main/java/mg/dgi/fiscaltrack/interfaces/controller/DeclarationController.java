@@ -6,6 +6,9 @@ import mg.dgi.fiscaltrack.application.usecase.declaration.DeposerDeclarationUseC
 import mg.dgi.fiscaltrack.application.usecase.declaration.VerifierDeclarationUseCase;
 import mg.dgi.fiscaltrack.domain.model.Declaration;
 import mg.dgi.fiscaltrack.interfaces.dto.request.DeclarationRequest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -33,6 +36,12 @@ public class DeclarationController {
     @PreAuthorize("hasAnyRole('AGENT_GESTION','AGENT_RECETTE','RESPONSABLE','ADMIN')")
     public List<Map<String, Object>> lister() {
         return consulterUseCase.toutes().stream().map(this::toMap).toList();
+    }
+
+    @GetMapping("/paginated")
+    @PreAuthorize("hasAnyRole('AGENT_GESTION','AGENT_RECETTE','RESPONSABLE','ADMIN')")
+    public Page<Map<String, Object>> listerPagine(@PageableDefault(size = 20) Pageable pageable) {
+        return consulterUseCase.toutesPaginees(pageable).map(this::toMap);
     }
 
     @GetMapping("/{id}")

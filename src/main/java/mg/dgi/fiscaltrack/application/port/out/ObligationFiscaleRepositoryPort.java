@@ -1,6 +1,8 @@
 package mg.dgi.fiscaltrack.application.port.out;
 
 import mg.dgi.fiscaltrack.domain.model.ObligationFiscale;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -13,6 +15,8 @@ public interface ObligationFiscaleRepositoryPort {
     Optional<ObligationFiscale> findById(Long id);
 
     List<ObligationFiscale> findAll();
+
+    Page<ObligationFiscale> findAll(Pageable pageable);
 
     List<ObligationFiscale> findByNif(String nif);
 

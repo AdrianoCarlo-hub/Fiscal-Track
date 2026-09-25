@@ -4,6 +4,8 @@ import mg.dgi.fiscaltrack.application.port.out.DeclarationRepositoryPort;
 import mg.dgi.fiscaltrack.domain.model.Declaration;
 import mg.dgi.fiscaltrack.infrastructure.persistence.mapper.DeclarationMapper;
 import mg.dgi.fiscaltrack.infrastructure.persistence.repository.DeclarationJpaRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.time.OffsetDateTime;
@@ -48,6 +50,11 @@ public class DeclarationRepositoryAdapter implements DeclarationRepositoryPort {
         return jpaRepository.findAll().stream()
                 .map(mapper::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<Declaration> findAll(Pageable pageable) {
+        return jpaRepository.findAll(pageable).map(mapper::toDomain);
     }
 
     @Override

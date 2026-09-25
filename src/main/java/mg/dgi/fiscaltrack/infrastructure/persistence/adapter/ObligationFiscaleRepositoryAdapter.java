@@ -4,6 +4,8 @@ import mg.dgi.fiscaltrack.application.port.out.ObligationFiscaleRepositoryPort;
 import mg.dgi.fiscaltrack.domain.model.ObligationFiscale;
 import mg.dgi.fiscaltrack.infrastructure.persistence.mapper.ObligationFiscaleMapper;
 import mg.dgi.fiscaltrack.infrastructure.persistence.repository.ObligationFiscaleJpaRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -44,6 +46,11 @@ public class ObligationFiscaleRepositoryAdapter implements ObligationFiscaleRepo
         return jpaRepository.findAll().stream()
                 .map(mapper::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<ObligationFiscale> findAll(Pageable pageable) {
+        return jpaRepository.findAll(pageable).map(mapper::toDomain);
     }
 
     @Override

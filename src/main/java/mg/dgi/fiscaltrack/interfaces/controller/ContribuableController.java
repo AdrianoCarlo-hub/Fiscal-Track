@@ -12,6 +12,9 @@ import mg.dgi.fiscaltrack.domain.enums.StatutActivite;
 import mg.dgi.fiscaltrack.domain.model.Contribuable;
 import mg.dgi.fiscaltrack.interfaces.dto.request.ContribuableRequest;
 import mg.dgi.fiscaltrack.interfaces.dto.response.ContribuableResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -43,6 +46,14 @@ public class ContribuableController {
         return consulterUseCase.tous().stream().map(this::toResponse).toList();
     }
 
+    /** Endpoint pagine : /api/contribuables/paginated?page=0&size=20 */
+    @GetMapping("/paginated")
+    @PreAuthorize("hasAnyRole('AGENT_GESTION','AGENT_RECETTE','RESPONSABLE','ADMIN')")
+    public Page<ContribuableResponse> listerPagine(
+            @PageableDefault(size = 20) Pageable pageable) {
+        return consulterUseCase.tousPagine(pageable).map(this::toResponse);
+    }
+
     @GetMapping("/{nif}")
     public ContribuableResponse parNif(@PathVariable String nif) {
         return toResponse(consulterUseCase.parNif(nif));
@@ -51,6 +62,14 @@ public class ContribuableController {
     @GetMapping("/search")
     public List<ContribuableResponse> rechercher(@RequestParam("q") String critere) {
         return rechercherUseCase.execute(critere).stream().map(this::toResponse).toList();
+    }
+
+    /** Recherche paginee : /api/contribuables/search/paginated?q=text&page=0&size=20 */
+    @GetMapping("/search/paginated")
+    public Page<ContribuableResponse> rechercherPagine(
+            @RequestParam("q") String critere,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return rechercherUseCase.executePagine(critere, pageable).map(this::toResponse);
     }
 
     @PostMapping

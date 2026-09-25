@@ -2,6 +2,8 @@ package mg.dgi.fiscaltrack.application.usecase.declaration;
 
 import mg.dgi.fiscaltrack.application.port.out.DeclarationRepositoryPort;
 import mg.dgi.fiscaltrack.domain.model.Declaration;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -29,6 +31,10 @@ public class ConsulterDeclarationsUseCase {
 
     public List<Declaration> toutes() {
         return repositoryPort.findAll();
+    }
+
+    public Page<Declaration> toutesPaginees(Pageable pageable) {
+        return repositoryPort.findAll(pageable);
     }
 
     public List<Declaration> parStatutValidation(String statut) {

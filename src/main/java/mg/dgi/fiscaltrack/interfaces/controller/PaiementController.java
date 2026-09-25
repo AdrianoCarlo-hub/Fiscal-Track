@@ -7,6 +7,9 @@ import mg.dgi.fiscaltrack.application.usecase.paiement.EnregistrerPaiementUseCas
 import mg.dgi.fiscaltrack.domain.enums.ModePaiement;
 import mg.dgi.fiscaltrack.domain.model.Paiement;
 import mg.dgi.fiscaltrack.interfaces.dto.request.PaiementRequest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -35,6 +38,12 @@ public class PaiementController {
     @PreAuthorize("hasAnyRole('AGENT_RECETTE','RESPONSABLE','ADMIN')")
     public List<Map<String, Object>> lister() {
         return consulterUseCase.tous().stream().map(this::toMap).toList();
+    }
+
+    @GetMapping("/paginated")
+    @PreAuthorize("hasAnyRole('AGENT_RECETTE','RESPONSABLE','ADMIN')")
+    public Page<Map<String, Object>> listerPagine(@PageableDefault(size = 20) Pageable pageable) {
+        return consulterUseCase.tousPaginees(pageable).map(this::toMap);
     }
 
     @GetMapping("/{id}")
