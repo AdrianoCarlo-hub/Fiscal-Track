@@ -15,7 +15,7 @@ public enum TypeRelance {
     public String getCode() {
         return code;
     }
-
+//en relisant cette ligne depuis PostgreSQ
     public static TypeRelance fromCode(String code) {
         for (TypeRelance t : values()) {
             if (t.code.equals(code)) {
