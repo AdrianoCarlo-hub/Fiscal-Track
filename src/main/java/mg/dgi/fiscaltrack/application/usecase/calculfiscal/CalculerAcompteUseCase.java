@@ -1,5 +1,6 @@
 package mg.dgi.fiscaltrack.application.usecase.calculfiscal;
 
+import mg.dgi.fiscaltrack.application.usecase.admin.ParametreFiscalService;
 import mg.dgi.fiscaltrack.domain.exception.CalculFiscalInvalideException;
 import org.springframework.stereotype.Service;
 
@@ -8,44 +9,70 @@ import java.math.BigDecimal;
 /**
  * Calcul des acomptes provisionnels d'IR et d'IS.
  *
- * Regles :
- *   - 2 acomptes egaux de 50 % de l'impot N-1 (15 mai et 15 novembre).
+ * Regles (Document IR 2026, IS 2026) :
+ *   - 2 acomptes provisionnels de 25% chacun de l'impot N-1 (total 50%)
+ *     - 1er acompte : 31 mars
+ *     - 2eme acompte : 30 juin
  *   - Acomptes forfaitaires de debut d'activite.
+ *   - Pour cloture decalee : fin du 3e et du 6e mois
  */
 @Service
 public class CalculerAcompteUseCase {
 
+    private final ParametreFiscalService parametreFiscalService;
+
+    public CalculerAcompteUseCase(ParametreFiscalService parametreFiscalService) {
+        this.parametreFiscalService = parametreFiscalService;
+    }
+
+    /**
+     * Calcule un acompte provisionnel (25% de l'impot N-1).
+     * Document IR 2026 : 2 acomptes de 25% chacun.
+     */
     public BigDecimal calculerAcompteProvisionnel(BigDecimal impotN1) {
         if (impotN1 == null || impotN1.signum() < 0) {
             throw new CalculFiscalInvalideException("L'impot N-1 est obligatoire et positif");
         }
-        return impotN1.multiply(new BigDecimal("0.50"));
+        // Taux de 25% (la moitie de 50% total)
+        BigDecimal tauxAcompte = parametreFiscalService.getValeur("ACOMPTE_TAUX_PROVISIONNEL")
+                .divide(new BigDecimal(2), 4, java.math.RoundingMode.HALF_UP);
+        return impotN1.multiply(tauxAcompte);
     }
 
+    /**
+     * Acomptes de debut d'activite pour IS.
+     * Document IS 2026.
+     */
     public BigDecimal calculerAcompteDebutActiviteIs(String categorie) {
         if (categorie == null) {
             throw new CalculFiscalInvalideException("La categorie est obligatoire");
         }
-        switch (categorie.toUpperCase()) {
-            case "AGRICOLE":
-            case "ELEVEUR":
-                return new BigDecimal("16000");
-            case "ARTISAN":
-            case "GARGOTIER":
-            case "PETIT_COMMERCANT":
-                return new BigDecimal("50000");
-            case "COMMERCANT":
-            case "HOTELIER":
-            case "PRESTATAIRE":
-                return new BigDecimal("100000");
-            case "PROFESSION_LIBERALE":
-            case "ACTIVITES_MULTIPLES":
-                return new BigDecimal("150000");
-            default:
-                return new BigDecimal("50000");
+        String cat = categorie.toUpperCase();
+        
+        // AGRICOLE, ELEVEUR
+        if (cat.equals("AGRICOLE") || cat.equals("ELEVEUR")) {
+            return parametreFiscalService.getValeur("ACOMPTE_IS_AGRICOLE_ELEVEUR");
         }
+        // ARTISAN, GARGOTIER, PETIT_COMMERCANT
+        if (cat.equals("ARTISAN") || cat.equals("GARGOTIER") || cat.equals("PETIT_COMMERCANT")) {
+            return parametreFiscalService.getValeur("ACOMPTE_IS_ARTISAN");
+        }
+        // COMMERCANT, HOTELIER, PRESTATAIRE
+        if (cat.equals("COMMERCANT") || cat.equals("HOTELIER") || cat.equals("PRESTATAIRE")) {
+            return parametreFiscalService.getValeur("ACOMPTE_IS_COMMERCANT");
+        }
+        // PROFESSION_LIBERALE, ACTIVITES_MULTIPLES
+        if (cat.equals("PROFESSION_LIBERALE") || cat.equals("ACTIVITES_MULTIPLES")) {
+            return parametreFiscalService.getValeur("ACOMPTE_IS_PROFESSION_LIBERALE");
+        }
+        // Default
+        return parametreFiscalService.getValeur("ACOMPTE_IS_ARTISAN");
     }
 
+    /**
+     * Acomptes de debut d'activite pour IR.
+     * Document IR 2026.
+     */
     public BigDecimal calculerAcompteDebutActiviteIr(String categorie) {
         if (categorie == null) {
             throw new CalculFiscalInvalideException("La categorie est obligatoire");
@@ -53,8 +80,8 @@ public class CalculerAcompteUseCase {
         String cat = categorie.toUpperCase();
         if (cat.equals("INDUSTRIE") || cat.equals("ARTISANAT")
                 || cat.equals("AGRICULTURE") || cat.equals("TOURISME")) {
-            return new BigDecimal("500000");
+            return parametreFiscalService.getValeur("ACOMPTE_IR_INDUSTRIE_ETC");
         }
-        return new BigDecimal("1000000");
+        return parametreFiscalService.getValeur("ACOMPTE_IR_AUTRES");
     }
 }

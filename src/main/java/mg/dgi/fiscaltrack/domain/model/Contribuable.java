@@ -35,6 +35,8 @@ public class Contribuable {
     private ObligationComptable obligationComptable;
     private StatutActivite statutActivite;
     private LocalDate dateImmatriculation;
+    private Boolean autorisationOuverture;
+    private Boolean optionSante;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
 }

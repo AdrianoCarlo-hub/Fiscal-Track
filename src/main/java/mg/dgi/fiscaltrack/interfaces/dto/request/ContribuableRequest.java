@@ -43,4 +43,8 @@ public class ContribuableRequest {
 
     @NotNull(message = "La date d'immatriculation est obligatoire")
     private LocalDate dateImmatriculation;
+
+    private Boolean autorisationOuverture;
+
+    private Boolean optionSante;
 }

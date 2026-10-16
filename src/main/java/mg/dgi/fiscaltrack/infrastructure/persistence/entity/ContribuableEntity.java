@@ -68,6 +68,12 @@ public class ContribuableEntity {
     @Column(name = "date_immatriculation", nullable = false)
     private LocalDate dateImmatriculation;
 
+    @Column(name = "autorisation_ouverture")
+    private Boolean autorisationOuverture;
+
+    @Column(name = "option_sante")
+    private Boolean optionSante;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 

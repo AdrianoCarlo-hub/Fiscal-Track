@@ -75,11 +75,17 @@ public class DetectionRetardScheduler {
                 var declarationOpt = declarationRepositoryPort
                         .findByIdObligationFiscale(obligation.getIdObligationFiscale());
                 if (declarationOpt.isEmpty()) {
+                    logger.warn("[SCHEDULER] Obligation {} en retard sans declaration ; amende de defaut de depot a traiter explicitement",
+                            obligation.getIdObligationFiscale());
+                    compteur++;
                     continue;
                 }
                 var compteOpt = compteCourantFiscalRepositoryPort
                         .findByIdDeclaration(declarationOpt.get().getIdDeclaration());
                 if (compteOpt.isEmpty()) {
+                    logger.warn("[SCHEDULER] Obligation {} rattachee a une declaration sans compte fiscal ; traitement de penalite ignore",
+                            obligation.getIdObligationFiscale());
+                    compteur++;
                     continue;
                 }
                 calculerPenaliteUseCase.execute(

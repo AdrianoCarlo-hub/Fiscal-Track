@@ -31,6 +31,8 @@ public class ContribuableMapper {
                 .obligationComptable(parseEnum(ObligationComptable.class, e.getObligationComptable()))
                 .statutActivite(parseEnum(StatutActivite.class, e.getStatutActivite()))
                 .dateImmatriculation(e.getDateImmatriculation())
+                .autorisationOuverture(e.getAutorisationOuverture())
+                .optionSante(e.getOptionSante())
                 .createdAt(e.getCreatedAt())
                 .updatedAt(e.getUpdatedAt())
                 .build();
@@ -56,6 +58,8 @@ public class ContribuableMapper {
                 .obligationComptable(enumToString(d.getObligationComptable()))
                 .statutActivite(enumToString(d.getStatutActivite()))
                 .dateImmatriculation(d.getDateImmatriculation())
+                .autorisationOuverture(d.getAutorisationOuverture())
+                .optionSante(d.getOptionSante())
                 .createdAt(d.getCreatedAt())
                 .updatedAt(d.getUpdatedAt())
                 .build();

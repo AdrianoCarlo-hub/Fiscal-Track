@@ -12,7 +12,7 @@ import java.util.Map;
  * Orchestrateur du moteur de calcul fiscal.
  * Route vers le bon use case selon le code impot.
  *
- * Codes supportes : IR, IS, IRSA, TVA.
+ * Codes supportes : IR, IS, IRSA, TVA, IPVI, IMP, IRCM.
  */
 @Service
 public class CalculerFiscalDispatcherUseCase {
@@ -21,15 +21,24 @@ public class CalculerFiscalDispatcherUseCase {
     private final CalculerIsUseCase calculerIsUseCase;
     private final CalculerIrsaUseCase calculerIrsaUseCase;
     private final CalculerTvaUseCase calculerTvaUseCase;
+    private final CalculerIpviUseCase calculerIpviUseCase;
+    private final CalculerImpUseCase calculerImpUseCase;
+    private final CalculerIrcmUseCase calculerIrcmUseCase;
 
     public CalculerFiscalDispatcherUseCase(CalculerIrUseCase calculerIrUseCase,
                                              CalculerIsUseCase calculerIsUseCase,
                                              CalculerIrsaUseCase calculerIrsaUseCase,
-                                             CalculerTvaUseCase calculerTvaUseCase) {
+                                             CalculerTvaUseCase calculerTvaUseCase,
+                                             CalculerIpviUseCase calculerIpviUseCase,
+                                             CalculerImpUseCase calculerImpUseCase,
+                                             CalculerIrcmUseCase calculerIrcmUseCase) {
         this.calculerIrUseCase = calculerIrUseCase;
         this.calculerIsUseCase = calculerIsUseCase;
         this.calculerIrsaUseCase = calculerIrsaUseCase;
         this.calculerTvaUseCase = calculerTvaUseCase;
+        this.calculerIpviUseCase = calculerIpviUseCase;
+        this.calculerImpUseCase = calculerImpUseCase;
+        this.calculerIrcmUseCase = calculerIrcmUseCase;
     }
 
     public ResultatCalculFiscal execute(String codeImpot, Map<String, Object> params) {
@@ -46,6 +55,12 @@ public class CalculerFiscalDispatcherUseCase {
                 return calculerIrsa(params);
             case "TVA":
                 return calculerTva(params);
+            case "IPVI":
+                return calculerIpvi(params);
+            case "IMP":
+                return calculerImp(params);
+            case "IRCM":
+                return calculerIrcm(params);
             default:
                 throw new TypeImpotNonSupporteException(codeImpot);
         }
@@ -60,7 +75,9 @@ public class CalculerFiscalDispatcherUseCase {
                 bigDecimal(params, "deficitsReportables"),
                 categorie(params, "categorieActivite"),
                 bigDecimal(params, "acomptes"),
-                integer(params, "moisActifs", 12));
+                integer(params, "moisActifs", 12),
+                bool(params, "autorisationOuverture"),
+                bool(params, "optionSante"));
     }
 
     private ResultatCalculFiscal calculerIs(Map<String, Object> params) {
@@ -88,6 +105,25 @@ public class CalculerFiscalDispatcherUseCase {
                 bigDecimal(params, "tvaDeductible"),
                 bigDecimal(params, "creditTvaAnterieur"),
                 bool(params, "exportation"));
+    }
+
+    private ResultatCalculFiscal calculerIpvi(Map<String, Object> params) {
+        return calculerIpviUseCase.execute(
+                bigDecimal(params, "prixVente"),
+                bigDecimal(params, "acomptes"));
+    }
+
+    private ResultatCalculFiscal calculerImp(Map<String, Object> params) {
+        return calculerImpUseCase.execute(
+                bigDecimal(params, "montantMarche"),
+                bigDecimal(params, "acomptes"));
+    }
+
+    private ResultatCalculFiscal calculerIrcm(Map<String, Object> params) {
+        return calculerIrcmUseCase.execute(
+                bigDecimal(params, "caBrut"),
+                bool(params, "estCooperative"),
+                bigDecimal(params, "acomptes"));
     }
 
     // === Helpers de conversion ===

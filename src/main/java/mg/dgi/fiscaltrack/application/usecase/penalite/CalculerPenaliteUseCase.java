@@ -2,6 +2,7 @@ package mg.dgi.fiscaltrack.application.usecase.penalite;
 
 import mg.dgi.fiscaltrack.application.port.out.CompteCourantFiscalRepositoryPort;
 import mg.dgi.fiscaltrack.application.port.out.DeclarationRepositoryPort;
+import mg.dgi.fiscaltrack.application.usecase.admin.ParametreFiscalService;
 import mg.dgi.fiscaltrack.domain.model.CompteCourantFiscal;
 import mg.dgi.fiscaltrack.domain.model.Declaration;
 import org.springframework.stereotype.Service;
@@ -18,20 +19,25 @@ public class CalculerPenaliteUseCase {
 
     private final CompteCourantFiscalRepositoryPort compteRepositoryPort;
     private final DeclarationRepositoryPort declarationRepositoryPort;
+    private final ParametreFiscalService parametreFiscalService;
 
     public CalculerPenaliteUseCase(CompteCourantFiscalRepositoryPort compteRepositoryPort,
-                                    DeclarationRepositoryPort declarationRepositoryPort) {
+                                    DeclarationRepositoryPort declarationRepositoryPort,
+                                    ParametreFiscalService parametreFiscalService) {
         this.compteRepositoryPort = compteRepositoryPort;
         this.declarationRepositoryPort = declarationRepositoryPort;
+        this.parametreFiscalService = parametreFiscalService;
     }
 
     /**
-     * RC4-RC7 : calcule la penalite de retard pour un compte courant fiscal.
-     * Le taux mensuel depend de la taille de l'entreprise :
-     *   - Grande entreprise   : 3% par mois
-     *   - Moyenne entreprise  : 2% par mois
-     *   - Petite entreprise   : 1% par mois
-     * Toute fraction de mois entamee compte pour un mois complet.
+     * CDI 20.01.53 : taux initial selon le CA, puis +1 % par mois commence.
+     * Le taux cumule est applique une seule fois au montant a payer, avec plancher 10 000 Ar.
+     * Application :
+     *   - CA >= 400M : taux initial 3%
+     *   - 100M <= CA < 400M : taux initial 2%
+     *   - CA < 100M : taux initial 1%
+     *   - Puis +1% par mois de retard supplementaire
+     *   - Plancher de 10 000 Ar sur le total
      */
     @Transactional
     public BigDecimal execute(Long idCompte, LocalDate dateLimiteReelle) {
@@ -53,10 +59,14 @@ public class CalculerPenaliteUseCase {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Declaration introuvable pour le compte : " + idCompte));
 
-        BigDecimal tauxMensuel = determinerTaux(declaration.getChiffreAffairesDeclare());
-        BigDecimal penalites = compte.getMontantPrincipal()
-                .multiply(tauxMensuel)
-                .multiply(BigDecimal.valueOf(moisRetard))
+        BigDecimal tauxCumule = determinerTauxCumule(declaration.getChiffreAffairesDeclare(), moisRetard);
+        BigDecimal montantBase = compte.getMontantPrincipal() == null ? BigDecimal.ZERO : compte.getMontantPrincipal();
+        
+        // Plancher de 10 000 Ar (CDI 20.01.53)
+        BigDecimal plancher = parametreFiscalService.getValeur("PENALITE_PLANCHER");
+        BigDecimal penalites = montantBase
+                .multiply(tauxCumule)
+                .max(plancher)
                 .setScale(2, RoundingMode.HALF_UP);
 
         compte.setMontantPenalites(penalites);
@@ -68,7 +78,7 @@ public class CalculerPenaliteUseCase {
 
     /**
      * Calcul du nombre de mois de retard. Toute fraction de mois
-     * entamee compte pour un mois complet.
+     * entamee compte pour un mois complet (CDI 20.01.53).
      */
     private long calculerMoisRetard(LocalDate dateLimite, LocalDate aujourdHui) {
         if (!aujourdHui.isAfter(dateLimite)) {
@@ -83,25 +93,37 @@ public class CalculerPenaliteUseCase {
     }
 
     /**
-     * Determination de la taille d'entreprise a partir du chiffre d'affaires.
-     * Seuils usuels :
-     *   - Grande   : CA >= 400 000 000 Ar
-     *   - Moyenne  : CA >= 100 000 000 Ar
-     *   - Petite   : CA <  100 000 000 Ar
+     * Détermine le taux cumulé applicé pour le nombre de mois de retard.
+     * CDI 20.01.53 : taux initial + 1 % × (mois - 1), avec plancher 10 000 Ar.
      */
-    private BigDecimal determinerTaux(BigDecimal chiffreAffaires) {
+    private BigDecimal determinerTauxCumule(BigDecimal chiffreAffaires, long moisRetard) {
+        BigDecimal tauxInitial = determinerTauxInitial(chiffreAffaires);
+        // Increment de 1% par mois apres le premier (CDI 20.01.53)
+        BigDecimal increment = parametreFiscalService.getValeur("PENALITE_TAUX_INCREMENT_MENSUEL")
+                .multiply(BigDecimal.valueOf(Math.max(0, moisRetard - 1)));
+        return tauxInitial.add(increment);
+    }
+
+    /**
+     * Determination du taux de depart selon la taille d'entreprise.
+     * CDI 20.01.53 :
+     *   - Grande   : CA >= 400 000 000 Ar -> 3%
+     *   - Moyenne  : CA >= 100 000 000 Ar -> 2%
+     *   - Petite   : CA <  100 000 000 Ar -> 1%
+     */
+    private BigDecimal determinerTauxInitial(BigDecimal chiffreAffaires) {
         if (chiffreAffaires == null) {
-            return new BigDecimal("0.01");
+            return parametreFiscalService.getValeur("PENALITE_TAUX_INITIAL_PETITE");
         }
-        BigDecimal seuilGrande = new BigDecimal("400000000");
-        BigDecimal seuilMoyenne = new BigDecimal("100000000");
+        BigDecimal seuilGrande = parametreFiscalService.getValeur("PENALITE_SEUIL_GRANDE_ENTREPRISE");
+        BigDecimal seuilMoyenne = parametreFiscalService.getValeur("PENALITE_SEUIL_MOYENNE_ENTREPRISE");
 
         if (chiffreAffaires.compareTo(seuilGrande) >= 0) {
-            return new BigDecimal("0.03");
+            return parametreFiscalService.getValeur("PENALITE_TAUX_INITIAL_GRANDE");
         }
         if (chiffreAffaires.compareTo(seuilMoyenne) >= 0) {
-            return new BigDecimal("0.02");
+            return parametreFiscalService.getValeur("PENALITE_TAUX_INITIAL_MOYENNE");
         }
-        return new BigDecimal("0.01");
+        return parametreFiscalService.getValeur("PENALITE_TAUX_INITIAL_PETITE");
     }
 }

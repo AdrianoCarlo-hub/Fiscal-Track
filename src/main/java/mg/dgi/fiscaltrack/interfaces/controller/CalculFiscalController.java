@@ -48,6 +48,9 @@ public class CalculFiscalController {
     public ResponseEntity<CalculFiscalResponse> calculerIr(@Valid @RequestBody CalculIrRequest req) {
         CategorieActivite cat = CategorieActivite.valueOf(req.getCategorieActivite().toUpperCase());
         int mois = req.getMoisActifs() == null ? 12 : req.getMoisActifs();
+        boolean autorisationOuverture = req.getAutorisationOuverture() != null
+                && req.getAutorisationOuverture();
+        boolean optionSante = req.getOptionSante() != null && req.getOptionSante();
 
         ResultatCalculFiscal resultat = calculerIrUseCase.execute(
                 req.getCaHT(),
@@ -57,7 +60,9 @@ public class CalculFiscalController {
                 req.getDeficitsReportables(),
                 cat,
                 req.getAcomptes(),
-                mois);
+                mois,
+                autorisationOuverture,
+                optionSante);
 
         return ResponseEntity.ok(toResponse(resultat));
     }

@@ -104,6 +104,8 @@ public class ContribuableController {
                 .obligationComptable(parseEnum(ObligationComptable.class, r.getObligationComptable()))
                 .statutActivite(parseEnum(StatutActivite.class, r.getStatutActivite()))
                 .dateImmatriculation(r.getDateImmatriculation())
+                .autorisationOuverture(r.getAutorisationOuverture())
+                .optionSante(r.getOptionSante())
                 .build();
     }
 
@@ -123,6 +125,8 @@ public class ContribuableController {
                 .obligationComptable(enumName(c.getObligationComptable()))
                 .statutActivite(enumName(c.getStatutActivite()))
                 .dateImmatriculation(c.getDateImmatriculation())
+                .autorisationOuverture(c.getAutorisationOuverture())
+                .optionSante(c.getOptionSante())
                 .createdAt(c.getCreatedAt())
                 .updatedAt(c.getUpdatedAt())
                 .build();

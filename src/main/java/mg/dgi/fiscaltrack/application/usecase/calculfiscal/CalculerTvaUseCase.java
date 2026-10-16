@@ -1,5 +1,6 @@
 package mg.dgi.fiscaltrack.application.usecase.calculfiscal;
 
+import mg.dgi.fiscaltrack.application.usecase.admin.ParametreFiscalService;
 import mg.dgi.fiscaltrack.domain.exception.CalculFiscalInvalideException;
 import mg.dgi.fiscaltrack.domain.model.ResultatCalculFiscal;
 import org.springframework.stereotype.Service;
@@ -12,14 +13,20 @@ import java.util.List;
 /**
  * Calcul de la Taxe sur la Valeur Ajoutee (TVA).
  *
- * Taux : 20% (0% pour exportations).
+ * Taux : 20% (normal), 0% (exportations) (CDI 06.01.12).
  * TVA nette = TVA collectee - TVA deductible.
  * Si negatif : credit de TVA reportable.
+ * Seuil d'assujettissement : 400 000 000 Ar (CDI 06.01.04).
+ * Declaration et paiement au plus tard le 15 du mois suivant (CDI 06.01.16).
  */
 @Service
 public class CalculerTvaUseCase {
 
-    private static final BigDecimal TAUX_TVA = new BigDecimal("0.20");
+    private final ParametreFiscalService parametreFiscalService;
+
+    public CalculerTvaUseCase(ParametreFiscalService parametreFiscalService) {
+        this.parametreFiscalService = parametreFiscalService;
+    }
 
     public ResultatCalculFiscal execute(BigDecimal tvaCollectee,
                                           BigDecimal tvaDeductible,
@@ -50,7 +57,10 @@ public class CalculerTvaUseCase {
             tvaDue = tvaNette.setScale(2, RoundingMode.HALF_UP);
         }
 
-        BigDecimal tauxApplique = exportation ? BigDecimal.ZERO : TAUX_TVA;
+        // Taux applique : 0% pour exportation, sinon 20% (CDI 06.01.12)
+        BigDecimal tauxApplique = exportation 
+                ? parametreFiscalService.getValeur("TVA_TAUX_EXPORT")
+                : parametreFiscalService.getValeur("TVA_TAUX_NORMAL");
 
         List<String> etapes = new ArrayList<>();
         etapes.add("TVA collectee : " + tvaCollectee + " Ar");

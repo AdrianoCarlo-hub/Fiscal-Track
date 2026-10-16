@@ -28,6 +28,8 @@ public class ContribuableResponse {
     private String obligationComptable;
     private String statutActivite;
     private LocalDate dateImmatriculation;
+    private Boolean autorisationOuverture;
+    private Boolean optionSante;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
 }
