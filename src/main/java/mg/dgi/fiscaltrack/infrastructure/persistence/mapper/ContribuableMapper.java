@@ -33,6 +33,7 @@ public class ContribuableMapper {
                 .dateImmatriculation(e.getDateImmatriculation())
                 .autorisationOuverture(e.getAutorisationOuverture())
                 .optionSante(e.getOptionSante())
+                .dateCloture(e.getDateCloture())
                 .createdAt(e.getCreatedAt())
                 .updatedAt(e.getUpdatedAt())
                 .build();
@@ -60,6 +61,7 @@ public class ContribuableMapper {
                 .dateImmatriculation(d.getDateImmatriculation())
                 .autorisationOuverture(d.getAutorisationOuverture())
                 .optionSante(d.getOptionSante())
+                .dateCloture(d.getDateCloture())
                 .createdAt(d.getCreatedAt())
                 .updatedAt(d.getUpdatedAt())
                 .build();

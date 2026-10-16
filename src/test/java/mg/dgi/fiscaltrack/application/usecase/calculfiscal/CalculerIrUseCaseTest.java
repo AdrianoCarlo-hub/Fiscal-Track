@@ -3,6 +3,7 @@ package mg.dgi.fiscaltrack.application.usecase.calculfiscal;
 import mg.dgi.fiscaltrack.application.usecase.admin.ParametreFiscalService;
 import mg.dgi.fiscaltrack.domain.enums.CategorieActivite;
 import mg.dgi.fiscaltrack.domain.exception.CalculFiscalInvalideException;
+import mg.dgi.fiscaltrack.domain.model.DeficitReportable;
 import mg.dgi.fiscaltrack.domain.model.ResultatCalculFiscal;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -27,6 +29,8 @@ class CalculerIrUseCaseTest {
         Mockito.when(parametreFiscalService.getValeur("IR_TAUX_NORMAL"))
                 .thenReturn(new BigDecimal("0.20"));
         Mockito.when(parametreFiscalService.getValeur("IR_TAUX_EDUCATION_SANTE"))
+                .thenReturn(new BigDecimal("0.10"));
+        Mockito.when(parametreFiscalService.getValeur("IR_TAUX_OSBL"))
                 .thenReturn(new BigDecimal("0.10"));
         Mockito.when(parametreFiscalService.getValeur("IR_TAUX_CARBURANT"))
                 .thenReturn(new BigDecimal("0.002"));
@@ -54,7 +58,8 @@ class CalculerIrUseCaseTest {
                 new BigDecimal("450000000"),
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
-                BigDecimal.ZERO,
+                List.of(),
+                2026,
                 CategorieActivite.INDUSTRIEL,
                 BigDecimal.ZERO,
                 12,
@@ -76,7 +81,8 @@ class CalculerIrUseCaseTest {
                 new BigDecimal("290000000"),
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
-                BigDecimal.ZERO,
+                List.of(),
+                2026,
                 CategorieActivite.COMMERCE,
                 BigDecimal.ZERO,
                 12,
@@ -97,7 +103,8 @@ class CalculerIrUseCaseTest {
                 new BigDecimal("400000000"),
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
-                BigDecimal.ZERO,
+                List.of(),
+                2026,
                 CategorieActivite.EDUCATION,
                 BigDecimal.ZERO,
                 12,
@@ -118,7 +125,8 @@ class CalculerIrUseCaseTest {
                 new BigDecimal("400000000"),
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
-                BigDecimal.ZERO,
+                List.of(),
+                2026,
                 CategorieActivite.EDUCATION,
                 BigDecimal.ZERO,
                 12,
@@ -136,14 +144,14 @@ class CalculerIrUseCaseTest {
         // Autorisation seule : pas d'option -> regime general 20%
         ResultatCalculFiscal sansOption = useCase.execute(
                 new BigDecimal("500000000"), new BigDecimal("400000000"), BigDecimal.ZERO,
-                BigDecimal.ZERO, BigDecimal.ZERO, CategorieActivite.SANTE, BigDecimal.ZERO,
+                BigDecimal.ZERO, List.of(), 2026, CategorieActivite.SANTE, BigDecimal.ZERO,
                 12, true, false);
         assertEquals(0, sansOption.getTauxApplique().compareTo(new BigDecimal("0.20")));
 
         // Autorisation + option -> 10%
         ResultatCalculFiscal avecOption = useCase.execute(
                 new BigDecimal("500000000"), new BigDecimal("400000000"), BigDecimal.ZERO,
-                BigDecimal.ZERO, BigDecimal.ZERO, CategorieActivite.SANTE, BigDecimal.ZERO,
+                BigDecimal.ZERO, List.of(), 2026, CategorieActivite.SANTE, BigDecimal.ZERO,
                 12, true, true);
         assertEquals(0, avecOption.getTauxApplique().compareTo(new BigDecimal("0.10")));
     }
@@ -156,7 +164,8 @@ class CalculerIrUseCaseTest {
                 new BigDecimal("280000000"),
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
-                BigDecimal.ZERO,
+                List.of(),
+                2026,
                 CategorieActivite.INDUSTRIEL,
                 new BigDecimal("30000000"),
                 6,
@@ -178,7 +187,8 @@ class CalculerIrUseCaseTest {
                 new BigDecimal("40000000"),
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
-                BigDecimal.ZERO,
+                List.of(),
+                2026,
                 CategorieActivite.CARBURANT_DETAIL,
                 BigDecimal.ZERO,
                 12,
@@ -199,7 +209,8 @@ class CalculerIrUseCaseTest {
                 new BigDecimal("150000000"),
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
-                BigDecimal.ZERO,
+                List.of(),
+                2026,
                 CategorieActivite.COMMERCE,
                 BigDecimal.ZERO,
                 12,
@@ -212,11 +223,137 @@ class CalculerIrUseCaseTest {
     }
 
     @Test
+    @DisplayName("IR OSBL : taux reduit 10%")
+    void irOsbl() {
+        ResultatCalculFiscal r = useCase.execute(
+                new BigDecimal("500000000"),
+                new BigDecimal("400000000"),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                List.of(),
+                2026,
+                CategorieActivite.OSBL,
+                BigDecimal.ZERO,
+                12,
+                false,
+                false);
+
+        assertEquals(0, r.getTauxApplique().compareTo(new BigDecimal("0.10")));
+        assertEquals(0, r.getMontantBrut().compareTo(new BigDecimal("10000000")));
+    }
+
+    @Test
+    @DisplayName("IR associe-gerant SARL : abattement 4,2M puis minimum 320 000")
+    void irAssocieGerantSarl() {
+        ResultatCalculFiscal r = useCase.execute(
+                new BigDecimal("100000000"),
+                new BigDecimal("90000000"),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                List.of(),
+                2026,
+                CategorieActivite.ASSOCIE_GERANT_SARL,
+                BigDecimal.ZERO,
+                12,
+                false,
+                false);
+
+        // Base = 10M - 4,2M = 5,8M ; IR = 5,8M x 20% = 1 160 000 (min 320 000)
+        assertEquals(0, r.getBaseImposable().compareTo(new BigDecimal("5800000")));
+        assertEquals(0, r.getSolde().compareTo(new BigDecimal("1160000")));
+    }
+
+    @Test
+    @DisplayName("IR associe-gerant SARL : base epuisee -> minimum 320 000")
+    void irAssocieGerantSarlMinimum() {
+        ResultatCalculFiscal r = useCase.execute(
+                new BigDecimal("100000000"),
+                new BigDecimal("100000000"),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                List.of(),
+                2026,
+                CategorieActivite.ASSOCIE_GERANT_SARL,
+                BigDecimal.ZERO,
+                12,
+                false,
+                false);
+
+        assertEquals(0, r.getBaseImposable().compareTo(BigDecimal.ZERO));
+        assertEquals(0, r.getSolde().compareTo(new BigDecimal("320000")));
+    }
+
+    @Test
+    @DisplayName("IR deficits : imputation des plus anciens d'abord")
+    void irDeficitsPlusAnciensDAbord() {
+        // Deux deficits valides : 2024 (30M) et 2022 (10M). Le plus ancien (2022)
+        // est impute d'abord, puis 2024.
+        ResultatCalculFiscal r = useCase.execute(
+                new BigDecimal("200000000"),
+                new BigDecimal("150000000"),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                List.of(new DeficitReportable(2024, new BigDecimal("30000000")),
+                        new DeficitReportable(2022, new BigDecimal("10000000"))),
+                2026,
+                CategorieActivite.COMMERCE,
+                BigDecimal.ZERO,
+                12,
+                false,
+                false);
+
+        // Base avant deficits = 50M ; -10M (2022) ; -30M (2024) = 10M
+        assertEquals(0, r.getBaseImposable().compareTo(new BigDecimal("10000000")));
+    }
+
+    @Test
+    @DisplayName("IR deficits : deficit de plus de 5 ans ignore et signale")
+    void irDeficitTropAncienIgnore() {
+        ResultatCalculFiscal r = useCase.execute(
+                new BigDecimal("200000000"),
+                new BigDecimal("150000000"),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                List.of(new DeficitReportable(2020, new BigDecimal("30000000"))),
+                2026,
+                CategorieActivite.COMMERCE,
+                BigDecimal.ZERO,
+                12,
+                false,
+                false);
+
+        // 2026 - 2020 = 6 > 5 -> ignore ; base = 50M
+        assertEquals(0, r.getBaseImposable().compareTo(new BigDecimal("50000000")));
+        assertFalse(r.getAvertissements().isEmpty());
+    }
+
+    @Test
+    @DisplayName("IR deficits : base epuisee, reliquat signale mais non impute")
+    void irDeficitBaseEpuisee() {
+        ResultatCalculFiscal r = useCase.execute(
+                new BigDecimal("100000000"),
+                new BigDecimal("90000000"),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                List.of(new DeficitReportable(2024, new BigDecimal("30000000")),
+                        new DeficitReportable(2025, new BigDecimal("5000000"))),
+                2026,
+                CategorieActivite.COMMERCE,
+                BigDecimal.ZERO,
+                12,
+                false,
+                false);
+
+        // Base = 10M ; deficit 2024 (30M) impute a hauteur de 10M ; 2025 non impute
+        assertEquals(0, r.getBaseImposable().compareTo(BigDecimal.ZERO));
+    }
+
+    @Test
     @DisplayName("IR CA negatif : exception")
     void irCaNegatif() {
         assertThrows(CalculFiscalInvalideException.class, () ->
                 useCase.execute(new BigDecimal("-1000"), BigDecimal.ZERO, BigDecimal.ZERO,
-                        BigDecimal.ZERO, BigDecimal.ZERO, CategorieActivite.AUTRE,
+                        BigDecimal.ZERO, List.of(), 2026, CategorieActivite.AUTRE,
                         BigDecimal.ZERO, 12, false, false));
     }
 }

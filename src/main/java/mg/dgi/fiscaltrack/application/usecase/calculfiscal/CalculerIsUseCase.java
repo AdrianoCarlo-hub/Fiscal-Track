@@ -18,6 +18,7 @@ import java.util.List;
  *   - CGA : abattement 50% plafonne a 5 000 000 Ar (CDI 01.02.05 bis)
  *   - Reductions : -2% achats conformes, -2% charges salariales (CDI 01.02.05 bis)
  *   - Plancher : IS apres reduction >= 3% du CA brut (CDI 01.02.05)
+ *   - Minimum selon la categorie d'activite (16 000 / 50 000 / 100 000 / 150 000)
  *   - Arrondi a la dizaine de milliers inferieure
  */
 @Service
@@ -30,6 +31,15 @@ public class CalculerIsUseCase {
     }
 
     public ResultatCalculFiscal execute(BigDecimal caBrut,
+                                          boolean adherentCga,
+                                          BigDecimal achatsConformes,
+                                          BigDecimal chargesSalariales,
+                                          BigDecimal acomptes) {
+        return execute(caBrut, null, adherentCga, achatsConformes, chargesSalariales, acomptes);
+    }
+
+    public ResultatCalculFiscal execute(BigDecimal caBrut,
+                                          String categorieActivite,
                                           boolean adherentCga,
                                           BigDecimal achatsConformes,
                                           BigDecimal chargesSalariales,
@@ -67,7 +77,11 @@ public class CalculerIsUseCase {
         // Plancher : IS >= 3% du CA brut (CDI 01.02.05)
         BigDecimal tauxPlancher = parametreFiscalService.getValeur("IS_TAUX_PLANCHER");
         BigDecimal plancher = caBrut.multiply(tauxPlancher).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal isDu = isApresReduction.max(plancher);
+
+        // Minimum selon la categorie d'activite (16 000 / 50 000 / 100 000 / 150 000)
+        BigDecimal minimumCategorie = calculerMinimumCategorie(categorieActivite);
+        BigDecimal plancherEffectif = plancher.max(minimumCategorie);
+        BigDecimal isDu = isApresReduction.max(plancherEffectif);
 
         // Acomptes
         BigDecimal acomptesNvl = nvl(acomptes);
@@ -88,6 +102,9 @@ public class CalculerIsUseCase {
         etapes.add("IS theorique (" + (tauxIs.multiply(new BigDecimal(100))) + "%) : " + isTheorique + " Ar");
         etapes.add("Reductions : -" + reductionsTotal + " Ar");
         etapes.add("Plancher (" + (tauxPlancher.multiply(new BigDecimal(100))) + "% du CA) : " + plancher + " Ar");
+        if (minimumCategorie.signum() > 0) {
+            etapes.add("Minimum de la categorie : " + minimumCategorie + " Ar");
+        }
         etapes.add("IS retenu : " + isDu + " Ar");
         etapes.add("Acomptes : " + acomptesNvl + " Ar");
         if (credit.signum() > 0) {
@@ -101,7 +118,7 @@ public class CalculerIsUseCase {
                 .baseImposable(base)
                 .tauxApplique(tauxIs)
                 .montantBrut(isTheorique)
-                .montantMinimum(plancher)
+                .montantMinimum(plancherEffectif)
                 .reductions(reductionsTotal)
                 .acomptesDeduits(acomptesNvl)
                 .creditFiscal(credit)
@@ -109,6 +126,35 @@ public class CalculerIsUseCase {
                 .explication("IS = MAX(CA x " + (tauxIs.multiply(new BigDecimal(100))) + "% - reductions ; " + (tauxPlancher.multiply(new BigDecimal(100))) + "% du CA) - acomptes")
                 .etapesCalcul(etapes)
                 .build();
+    }
+
+    /**
+     * Minimum d'imposition IS selon la categorie d'activite (CDI 01.02.05).
+     *   - AGRICOLE, ELEVEUR : 16 000 Ar
+     *   - ARTISAN, GARGOTIER, PETIT_COMMERCANT : 50 000 Ar
+     *   - COMMERCANT, HOTELIER, PRESTATAIRE : 100 000 Ar
+     *   - PROFESSION_LIBERALE, ACTIVITES_MULTIPLES : 150 000 Ar
+     * Si la categorie n'est pas renseignee, aucun minimum de categorie n'est
+     * applique (seul le plancher de 3% du CA s'applique).
+     */
+    private BigDecimal calculerMinimumCategorie(String categorie) {
+        if (categorie == null || categorie.isBlank()) {
+            return BigDecimal.ZERO;
+        }
+        String cat = categorie.toUpperCase();
+        if (cat.equals("AGRICOLE") || cat.equals("ELEVEUR")) {
+            return parametreFiscalService.getValeur("IS_MINIMUM_AGRICOLE_ELEVEUR");
+        }
+        if (cat.equals("ARTISAN") || cat.equals("GARGOTIER") || cat.equals("PETIT_COMMERCANT")) {
+            return parametreFiscalService.getValeur("IS_MINIMUM_ARTISAN");
+        }
+        if (cat.equals("COMMERCANT") || cat.equals("HOTELIER") || cat.equals("PRESTATAIRE")) {
+            return parametreFiscalService.getValeur("IS_MINIMUM_COMMERCANT");
+        }
+        if (cat.equals("PROFESSION_LIBERALE") || cat.equals("ACTIVITES_MULTIPLES")) {
+            return parametreFiscalService.getValeur("IS_MINIMUM_PROFESSION_LIBERALE");
+        }
+        return BigDecimal.ZERO;
     }
 
     /**

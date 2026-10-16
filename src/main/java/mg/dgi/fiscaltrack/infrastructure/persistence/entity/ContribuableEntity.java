@@ -74,6 +74,9 @@ public class ContribuableEntity {
     @Column(name = "option_sante")
     private Boolean optionSante;
 
+    @Column(name = "date_cloture")
+    private LocalDate dateCloture;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 

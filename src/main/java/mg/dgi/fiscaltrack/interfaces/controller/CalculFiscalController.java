@@ -8,6 +8,7 @@ import mg.dgi.fiscaltrack.application.usecase.calculfiscal.CalculerIrsaUseCase;
 import mg.dgi.fiscaltrack.application.usecase.calculfiscal.CalculerIsUseCase;
 import mg.dgi.fiscaltrack.application.usecase.calculfiscal.CalculerTvaUseCase;
 import mg.dgi.fiscaltrack.domain.enums.CategorieActivite;
+import mg.dgi.fiscaltrack.domain.model.DeficitReportable;
 import mg.dgi.fiscaltrack.domain.model.ResultatCalculFiscal;
 import mg.dgi.fiscaltrack.interfaces.dto.request.CalculIrRequest;
 import mg.dgi.fiscaltrack.interfaces.dto.request.CalculIrsaRequest;
@@ -20,6 +21,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/calculs")
@@ -52,12 +56,28 @@ public class CalculFiscalController {
                 && req.getAutorisationOuverture();
         boolean optionSante = req.getOptionSante() != null && req.getOptionSante();
 
+        int anneeExercice = req.getAnneeExercice() == null
+                ? java.time.Year.now().getValue()
+                : req.getAnneeExercice();
+        List<DeficitReportable> deficits = new ArrayList<>();
+        if (req.getDeficits() != null) {
+            for (CalculIrRequest.DeficitRequest d : req.getDeficits()) {
+                if (d.getAnneeOrigine() != null && d.getMontant() != null) {
+                    deficits.add(new DeficitReportable(d.getAnneeOrigine(), d.getMontant()));
+                }
+            }
+        }
+        if (deficits.isEmpty() && req.getDeficitsReportables() != null) {
+            deficits.add(new DeficitReportable(anneeExercice - 1, req.getDeficitsReportables()));
+        }
+
         ResultatCalculFiscal resultat = calculerIrUseCase.execute(
                 req.getCaHT(),
                 req.getChargesDeductibles(),
                 req.getReintegrations(),
                 req.getDeductions(),
-                req.getDeficitsReportables(),
+                deficits,
+                anneeExercice,
                 cat,
                 req.getAcomptes(),
                 mois,
@@ -72,6 +92,7 @@ public class CalculFiscalController {
         boolean cga = req.getAdherentCga() != null && req.getAdherentCga();
         ResultatCalculFiscal resultat = calculerIsUseCase.execute(
                 req.getCaBrut(),
+                req.getCategorieActivite(),
                 cga,
                 req.getAchatsConformes(),
                 req.getChargesSalariales(),
@@ -95,11 +116,14 @@ public class CalculFiscalController {
     @PostMapping("/tva")
     public ResponseEntity<CalculFiscalResponse> calculerTva(@Valid @RequestBody CalculTvaRequest req) {
         boolean exportation = req.getExportation() != null && req.getExportation();
+        boolean gazButane = req.getGazButane() != null && req.getGazButane();
         ResultatCalculFiscal resultat = calculerTvaUseCase.execute(
                 req.getTvaCollectee(),
                 req.getTvaDeductible(),
                 req.getCreditTvaAnterieur(),
-                exportation);
+                exportation,
+                gazButane,
+                req.getChiffreAffaires());
         return ResponseEntity.ok(toResponse(resultat));
     }
 
@@ -119,6 +143,7 @@ public class CalculFiscalController {
                 .solde(r.getSolde())
                 .explication(r.getExplication())
                 .etapesCalcul(r.getEtapesCalcul())
+                .avertissements(r.getAvertissements())
                 .build();
     }
 }

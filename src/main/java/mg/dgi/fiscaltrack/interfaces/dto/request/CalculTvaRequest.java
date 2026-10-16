@@ -19,4 +19,10 @@ public class CalculTvaRequest {
 
     private BigDecimal creditTvaAnterieur;
     private Boolean exportation;
+
+    /** Application du taux reduit de 5% (gaz butane, CDI 06.01.12). */
+    private Boolean gazButane;
+
+    /** Chiffre d'affaires de reference, pour controler le seuil d'assujettissement (400M). */
+    private BigDecimal chiffreAffaires;
 }

@@ -32,6 +32,14 @@ class CalculerIsUseCaseTest {
                 .thenReturn(new BigDecimal("0.02"));
         Mockito.when(parametreFiscalService.getValeur("IS_TAUX_PLANCHER"))
                 .thenReturn(new BigDecimal("0.03"));
+        Mockito.when(parametreFiscalService.getValeur("IS_MINIMUM_AGRICOLE_ELEVEUR"))
+                .thenReturn(new BigDecimal("16000"));
+        Mockito.when(parametreFiscalService.getValeur("IS_MINIMUM_ARTISAN"))
+                .thenReturn(new BigDecimal("50000"));
+        Mockito.when(parametreFiscalService.getValeur("IS_MINIMUM_COMMERCANT"))
+                .thenReturn(new BigDecimal("100000"));
+        Mockito.when(parametreFiscalService.getValeur("IS_MINIMUM_PROFESSION_LIBERALE"))
+                .thenReturn(new BigDecimal("150000"));
     }
 
     @Test
@@ -93,5 +101,51 @@ class CalculerIsUseCaseTest {
 
         // IS du = 5M, acomptes = 2M, solde = 3M
         assertEquals(0, r.getSolde().compareTo(new BigDecimal("3000000")));
+    }
+
+    @Test
+    @DisplayName("IS minimum categorie : petit CA, minimum PROFESSION_LIBERALE 150 000")
+    void isMinimumCategorieProfessionLiberale() {
+        ResultatCalculFiscal r = useCase.execute(
+                new BigDecimal("1000000"),
+                "PROFESSION_LIBERALE",
+                false,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO);
+
+        // CA = 1M, IS theorique = 50 000, plancher 3% = 30 000,
+        // minimum categorie = 150 000 -> IS du = 150 000
+        assertEquals(0, r.getSolde().compareTo(new BigDecimal("150000")));
+        assertEquals(0, r.getMontantMinimum().compareTo(new BigDecimal("150000")));
+    }
+
+    @Test
+    @DisplayName("IS minimum categorie : COMMERCANT 100 000")
+    void isMinimumCategorieCommercant() {
+        ResultatCalculFiscal r = useCase.execute(
+                new BigDecimal("1000000"),
+                "COMMERCANT",
+                false,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO);
+
+        assertEquals(0, r.getSolde().compareTo(new BigDecimal("100000")));
+    }
+
+    @Test
+    @DisplayName("IS minimum categorie : AGRICOLE 16 000, plancher 3% retenu")
+    void isMinimumCategorieAgricole() {
+        ResultatCalculFiscal r = useCase.execute(
+                new BigDecimal("1000000"),
+                "AGRICOLE",
+                false,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO);
+
+        // minimum categorie 16 000 ; IS theorique 50 000 -> 50 000
+        assertEquals(0, r.getSolde().compareTo(new BigDecimal("50000")));
     }
 }

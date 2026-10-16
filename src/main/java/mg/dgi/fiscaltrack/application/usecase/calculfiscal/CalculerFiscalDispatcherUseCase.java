@@ -2,10 +2,12 @@ package mg.dgi.fiscaltrack.application.usecase.calculfiscal;
 
 import mg.dgi.fiscaltrack.domain.enums.CategorieActivite;
 import mg.dgi.fiscaltrack.domain.exception.TypeImpotNonSupporteException;
+import mg.dgi.fiscaltrack.domain.model.DeficitReportable;
 import mg.dgi.fiscaltrack.domain.model.ResultatCalculFiscal;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -72,7 +74,8 @@ public class CalculerFiscalDispatcherUseCase {
                 bigDecimal(params, "chargesDeductibles"),
                 bigDecimal(params, "reintegrations"),
                 bigDecimal(params, "deductions"),
-                bigDecimal(params, "deficitsReportables"),
+                deficits(params, "deficitsReportables"),
+                integer(params, "anneeExercice", java.time.Year.now().getValue()),
                 categorie(params, "categorieActivite"),
                 bigDecimal(params, "acomptes"),
                 integer(params, "moisActifs", 12),
@@ -83,6 +86,7 @@ public class CalculerFiscalDispatcherUseCase {
     private ResultatCalculFiscal calculerIs(Map<String, Object> params) {
         return calculerIsUseCase.execute(
                 bigDecimal(params, "caBrut"),
+                string(params, "categorieActivite"),
                 bool(params, "adherentCga"),
                 bigDecimal(params, "achatsConformes"),
                 bigDecimal(params, "chargesSalariales"),
@@ -104,7 +108,9 @@ public class CalculerFiscalDispatcherUseCase {
                 bigDecimal(params, "tvaCollectee"),
                 bigDecimal(params, "tvaDeductible"),
                 bigDecimal(params, "creditTvaAnterieur"),
-                bool(params, "exportation"));
+                bool(params, "exportation"),
+                bool(params, "gazButane"),
+                bigDecimal(params, "chiffreAffaires"));
     }
 
     private ResultatCalculFiscal calculerIpvi(Map<String, Object> params) {
@@ -137,6 +143,11 @@ public class CalculerFiscalDispatcherUseCase {
         return null;
     }
 
+    private String string(Map<String, Object> params, String key) {
+        Object v = params.get(key);
+        return v == null ? null : v.toString();
+    }
+
     private Integer integer(Map<String, Object> params, String key, int defaut) {
         Object v = params.get(key);
         if (v == null) return defaut;
@@ -162,5 +173,28 @@ public class CalculerFiscalDispatcherUseCase {
         } catch (IllegalArgumentException e) {
             return CategorieActivite.AUTRE;
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<DeficitReportable> deficits(Map<String, Object> params, String key) {
+        Object v = params.get(key);
+        List<DeficitReportable> result = new java.util.ArrayList<>();
+        if (v == null) return result;
+        if (v instanceof List<?> list) {
+            for (Object item : list) {
+                if (item instanceof DeficitReportable dr) {
+                    result.add(dr);
+                } else if (item instanceof Map<?, ?> map) {
+                    Object annee = map.get("anneeOrigine");
+                    Object montant = map.get("montant");
+                    if (annee != null && montant != null) {
+                        result.add(new DeficitReportable(
+                                new BigDecimal(annee.toString()).intValue(),
+                                new BigDecimal(montant.toString())));
+                    }
+                }
+            }
+        }
+        return result;
     }
 }

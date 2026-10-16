@@ -47,4 +47,7 @@ public class ContribuableRequest {
     private Boolean autorisationOuverture;
 
     private Boolean optionSante;
+
+    /** Date de cloture de l'exercice comptable (ex. 30 juin). Null = exercice civil. */
+    private LocalDate dateCloture;
 }

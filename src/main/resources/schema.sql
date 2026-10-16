@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS contribuables (
     date_immatriculation DATE NOT NULL,
     autorisation_ouverture BOOLEAN,
     option_sante BOOLEAN,
+    date_cloture DATE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL
 );

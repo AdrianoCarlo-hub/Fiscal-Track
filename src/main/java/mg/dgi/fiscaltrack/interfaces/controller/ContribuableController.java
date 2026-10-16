@@ -106,6 +106,7 @@ public class ContribuableController {
                 .dateImmatriculation(r.getDateImmatriculation())
                 .autorisationOuverture(r.getAutorisationOuverture())
                 .optionSante(r.getOptionSante())
+                .dateCloture(r.getDateCloture())
                 .build();
     }
 
@@ -127,6 +128,7 @@ public class ContribuableController {
                 .dateImmatriculation(c.getDateImmatriculation())
                 .autorisationOuverture(c.getAutorisationOuverture())
                 .optionSante(c.getOptionSante())
+                .dateCloture(c.getDateCloture())
                 .createdAt(c.getCreatedAt())
                 .updatedAt(c.getUpdatedAt())
                 .build();

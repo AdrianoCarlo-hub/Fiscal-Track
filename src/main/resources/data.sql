@@ -36,7 +36,8 @@ INSERT INTO parametres_fiscaux (code, valeur, annee_debut, annee_fin, base_legal
 ('IR_TAUX_VARIABLE_AGRICOLE', 0.01, 2026, null, 'CDI 01.01.05', 'IR', 'Taux variable (1%) pour AGRICOLE, ARTISANAL, INDUSTRIEL, MINIER, HOTELIER, TOURISTIQUE'),
 ('IR_TAUX_VARIABLE_EDUCATION', 0.002, 2026, null, 'CDI 01.01.05 V / 01.01.14 V', 'IR', 'Taux variable (0.2%) pour EDUCATION et SANTE'),
 ('IR_MINIMUM_SARL', 320000, 2026, null, 'CDI 01.01.05', 'IR', 'Minimum pour ASSOCIE_GERANT_SARL'),
-('IR_ABATTEMENT_SARL', 4200000, 2026, null, 'CDI 01.01.05', 'IR', 'Abattement pour ASSOCIE_GERANT_SARL')
+('IR_ABATTEMENT_SARL', 4200000, 2026, null, 'CDI 01.01.05', 'IR', 'Abattement pour ASSOCIE_GERANT_SARL'),
+('IR_TAUX_OSBL', 0.10, 2026, null, 'CDI 01.01.05', 'IR', 'Taux pour organismes sans but lucratif (OSBL, 10%)')
 ON CONFLICT (code) DO NOTHING;
 -- ============================================
 -- IS - Impot Synthetique (CDI 01.02.05 bis)
@@ -46,7 +47,11 @@ INSERT INTO parametres_fiscaux (code, valeur, annee_debut, annee_fin, base_legal
 ('IS_TAUX_ABATTEMENT_CGA', 0.50, 2026, null, 'CDI 01.02.05 bis', 'IS', 'Taux abattement CGA (50%)'),
 ('IS_PLAFOND_ABATTEMENT_CGA', 5000000, 2026, null, 'CDI 01.02.05 bis', 'IS', 'Plafond abattement CGA (5M)'),
 ('IS_TAUX_REDUCTION', 0.02, 2026, null, 'CDI 01.02.05 bis', 'IS', 'Taux reduction sur achats et charges salariales (2%)'),
-('IS_TAUX_PLANCHER', 0.03, 2026, null, 'CDI 01.02.05', 'IS', 'Plancher IS (3% du CA brut)')
+('IS_TAUX_PLANCHER', 0.03, 2026, null, 'CDI 01.02.05', 'IS', 'Plancher IS (3% du CA brut)'),
+('IS_MINIMUM_AGRICOLE_ELEVEUR', 16000, 2026, null, 'CDI 01.02.05', 'IS', 'Minimum IS - AGRICOLE, ELEVEUR'),
+('IS_MINIMUM_ARTISAN', 50000, 2026, null, 'CDI 01.02.05', 'IS', 'Minimum IS - ARTISAN, GARGOTIER, PETIT_COMMERCANT'),
+('IS_MINIMUM_COMMERCANT', 100000, 2026, null, 'CDI 01.02.05', 'IS', 'Minimum IS - COMMERCANT, HOTELIER, PRESTATAIRE'),
+('IS_MINIMUM_PROFESSION_LIBERALE', 150000, 2026, null, 'CDI 01.02.05', 'IS', 'Minimum IS - PROFESSION_LIBERALE, ACTIVITES_MULTIPLES')
 ON CONFLICT (code) DO NOTHING;
 -- ============================================
 -- IRSA - Impot sur les Revenus Salariaux
@@ -70,6 +75,7 @@ ON CONFLICT (code) DO NOTHING;
 INSERT INTO parametres_fiscaux (code, valeur, annee_debut, annee_fin, base_legale, secteur, description) VALUES
 ('TVA_TAUX_NORMAL', 0.20, 2026, null, 'CDI 06.01.12', 'TVA', 'Taux normal TVA (20%)'),
 ('TVA_TAUX_EXPORT', 0.00, 2026, null, 'CDI 06.01.12', 'TVA', 'Taux TVA pour exportations (0%)'),
+('TVA_TAUX_GAZ_BUTANE', 0.05, 2026, null, 'CDI 06.01.12', 'TVA', 'Taux reduit TVA gaz butane (5%)'),
 ('TVA_SEUIL_ASSUJETTISSEMENT', 400000000, 2026, null, 'CDI 06.01.04', 'TVA', 'Seuil d''assujettissement TVA (400M)'),
 ('TVA_ECHEANCE_JOUR', 15, 2026, null, 'CDI 06.01.16', 'TVA', 'Jour echeance declarative TVA')
 ON CONFLICT (code) DO NOTHING;
@@ -97,6 +103,8 @@ INSERT INTO parametres_fiscaux (code, valeur, annee_debut, annee_fin, base_legal
 ('ECHEANCE_IR_EXERCICE_CIVIL_MOIS', 5, 2026, null, 'CPF I-11', 'ECHEANCE', 'Mois echeance IR - exercice civil (mai)'),
 ('ECHEANCE_IR_CLOTURE_30_JUIN_JOUR', 15, 2026, null, 'CPF I-11', 'ECHEANCE', 'Jour echeance IR - cloture 30 juin (15 novembre)'),
 ('ECHEANCE_IR_CLOTURE_30_JUIN_MOIS', 11, 2026, null, 'CPF I-11', 'ECHEANCE', 'Mois echeance IR - cloture 30 juin (novembre)'),
+('ECHEANCE_IR_AUTRE_CLOTURE_JOUR', 15, 2026, null, 'Document IR 2026', 'ECHEANCE', 'Jour echeance IR - autre date de cloture (15)'),
+('ECHEANCE_IR_AUTRE_CLOTURE_DELAI_MOIS', 4, 2026, null, 'Document IR 2026', 'ECHEANCE', 'Delai en mois apres la cloture - IR autre date de cloture (4e mois)'),
 ('ECHEANCE_IS_JOUR', 31, 2026, null, 'CPF I-17', 'ECHEANCE', 'Jour echeance IS (31 mars)'),
 ('ECHEANCE_IS_MOIS', 3, 2026, null, 'CPF I-17', 'ECHEANCE', 'Mois echeance IS (mars)'),
 ('ECHEANCE_IRSA_JOUR', 15, 2026, null, 'CPF I-21', 'ECHEANCE', 'Jour echeance IRSA (15 du mois)'),

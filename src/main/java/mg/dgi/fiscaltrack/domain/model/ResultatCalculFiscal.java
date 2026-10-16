@@ -67,4 +67,8 @@ public class ResultatCalculFiscal {
     /** Detail etape par etape du calcul. */
     @Builder.Default
     private List<String> etapesCalcul = new ArrayList<>();
+
+    /** Avertissements structures (ex: seuil d'assujettissement TVA non atteint). */
+    @Builder.Default
+    private List<String> avertissements = new ArrayList<>();
 }

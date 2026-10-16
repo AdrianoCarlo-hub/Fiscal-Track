@@ -50,8 +50,8 @@ class CalculerFiscalDispatcherUseCaseTest {
                 .build();
         Mockito.when(calculerIrUseCase.execute(
                 Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(),
-                Mockito.any(), Mockito.any(), Mockito.any(), Mockito.anyInt(),
-                Mockito.anyBoolean(), Mockito.anyBoolean()))
+                Mockito.any(), Mockito.anyInt(), Mockito.any(), Mockito.any(),
+                Mockito.anyInt(), Mockito.anyBoolean(), Mockito.anyBoolean()))
                 .thenReturn(mockResult);
 
         ResultatCalculFiscal result = useCase.execute("IR", params);
@@ -67,7 +67,7 @@ class CalculerFiscalDispatcherUseCaseTest {
                 .solde(new BigDecimal("5000000"))
                 .build();
         Mockito.when(calculerIsUseCase.execute(
-                Mockito.any(), Mockito.anyBoolean(), Mockito.any(),
+                Mockito.any(), Mockito.any(), Mockito.anyBoolean(), Mockito.any(),
                 Mockito.any(), Mockito.any()))
                 .thenReturn(mockResult);
 
@@ -101,7 +101,8 @@ class CalculerFiscalDispatcherUseCaseTest {
                 .solde(new BigDecimal("600000"))
                 .build();
         Mockito.when(calculerTvaUseCase.execute(
-                Mockito.any(), Mockito.any(), Mockito.any(), Mockito.anyBoolean()))
+                Mockito.any(), Mockito.any(), Mockito.any(), Mockito.anyBoolean(),
+                Mockito.anyBoolean(), Mockito.any()))
                 .thenReturn(mockResult);
 
         ResultatCalculFiscal result = useCase.execute("TVA", params);

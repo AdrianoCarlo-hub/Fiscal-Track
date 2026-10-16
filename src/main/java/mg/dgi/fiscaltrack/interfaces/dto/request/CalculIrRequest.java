@@ -5,6 +5,7 @@ import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Data
 public class CalculIrRequest {
@@ -16,7 +17,22 @@ public class CalculIrRequest {
     private BigDecimal chargesDeductibles;
     private BigDecimal reintegrations;
     private BigDecimal deductions;
+
+    /**
+     * Montant unique de deficit reportable (compatibilite). Traite comme un
+     * deficit de l'exercice precedent (anneeExercice - 1) lorsque {@link #deficits}
+     * n'est pas renseigne.
+     */
     private BigDecimal deficitsReportables;
+
+    /**
+     * Deficits reportables structures, rattaches a leur exercice d'origine
+     * (report limite a 5 exercices, CDI 01.01.10 11°).
+     */
+    private List<DeficitRequest> deficits;
+
+    /** Exercice d'imposition courant (defaut : annee en cours). */
+    private Integer anneeExercice;
 
     @NotNull(message = "La categorie d'activite est obligatoire")
     private String categorieActivite;
@@ -37,4 +53,10 @@ public class CalculIrRequest {
      * reduit pour la categorie SANTE uniquement.
      */
     private Boolean optionSante;
+
+    @Data
+    public static class DeficitRequest {
+        private Integer anneeOrigine;
+        private BigDecimal montant;
+    }
 }

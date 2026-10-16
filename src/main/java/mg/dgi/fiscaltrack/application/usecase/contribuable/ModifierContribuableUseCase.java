@@ -60,6 +60,9 @@ public class ModifierContribuableUseCase {
         if (donneesModifiees.getStatutActivite() != null) {
             existant.setStatutActivite(donneesModifiees.getStatutActivite());
         }
+        if (donneesModifiees.getDateCloture() != null) {
+            existant.setDateCloture(donneesModifiees.getDateCloture());
+        }
 
         return repositoryPort.save(existant);
     }

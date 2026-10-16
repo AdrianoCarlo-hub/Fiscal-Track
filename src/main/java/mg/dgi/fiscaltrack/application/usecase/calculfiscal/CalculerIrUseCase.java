@@ -3,12 +3,14 @@ package mg.dgi.fiscaltrack.application.usecase.calculfiscal;
 import mg.dgi.fiscaltrack.application.usecase.admin.ParametreFiscalService;
 import mg.dgi.fiscaltrack.domain.enums.CategorieActivite;
 import mg.dgi.fiscaltrack.domain.exception.CalculFiscalInvalideException;
+import mg.dgi.fiscaltrack.domain.model.DeficitReportable;
 import mg.dgi.fiscaltrack.domain.model.ResultatCalculFiscal;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -24,6 +26,7 @@ import java.util.List;
  *     en plus seulement sur option (CDI 01.01.05 V, 01.01.14 V). Sans
  *     autorisation : regime general (20% et minimum de la categorie AUTRES).
  *   - Minimum selon categorie d'activite (CDI 01.01.05)
+ *   - Organismes sans but lucratif (OSBL) : 10%
  *   - Deficits reportables : report sur 5 exercices, plus anciens d'abord.
  *     Le minimum de perception reste du en cas de deficit.
  *   - Arrondi au millier inferieur
@@ -41,7 +44,8 @@ public class CalculerIrUseCase {
                                           BigDecimal chargesDeductibles,
                                           BigDecimal reintegrations,
                                           BigDecimal deductions,
-                                          BigDecimal deficitsReportables,
+                                          List<DeficitReportable> deficitsReportables,
+                                          int anneeExercice,
                                           CategorieActivite categorie,
                                           BigDecimal acomptes,
                                           int moisActifs,
@@ -62,17 +66,25 @@ public class CalculerIrUseCase {
         // Regime reduit education / sante uniquement si autorisation (et option sante)
         boolean regimeReduit = estRegimeEducationSanteReduit(categorie, autorisationOuverture, optionSante);
 
-        // Calcul de la base imposable
+        // Etapes et avertissements
+        List<String> etapes = new ArrayList<>();
+        List<String> avertissements = new ArrayList<>();
+
+        // Calcul de la base imposable avant imputation des deficits
         BigDecimal base = caHT
                 .subtract(nvl(chargesDeductibles))
                 .add(nvl(reintegrations))
-                .subtract(nvl(deductions))
-                .subtract(nvl(deficitsReportables));
+                .subtract(nvl(deductions));
+        etapes.add("Base avant imputation des deficits : " + base + " Ar");
+
+        // Imputation des deficits reportables (5 exercices, plus anciens d'abord)
+        base = imputerDeficits(base, anneeExercice, deficitsReportables, etapes, avertissements);
 
         // Abattement special pour associe-gerant SARL (CDI 01.01.05)
         if (categorie == CategorieActivite.ASSOCIE_GERANT_SARL) {
             BigDecimal abattement = parametreFiscalService.getValeur("IR_ABATTEMENT_SARL");
             base = base.subtract(abattement);
+            etapes.add("Abattement associe-gerant SARL : -" + abattement + " Ar");
         }
 
         // La base imposable n'est jamais negative : en cas de deficit, la base
@@ -108,7 +120,6 @@ public class CalculerIrUseCase {
         }
 
         // Etapes de calcul
-        List<String> etapes = new ArrayList<>();
         etapes.add("Base imposable : " + base + " Ar");
         etapes.add("Taux applique : " + taux.multiply(new BigDecimal("100")) + " %");
         etapes.add("IR theorique : " + irTheorique + " Ar");
@@ -133,7 +144,60 @@ public class CalculerIrUseCase {
                 .solde(solde)
                 .explication("IR = MAX(base x taux ; minimum) - acomptes")
                 .etapesCalcul(etapes)
+                .avertissements(avertissements)
                 .build();
+    }
+
+    /**
+     * Impute les deficits reportables sur la base imposable.
+     *
+     * Regles (CDI 01.01.10 11°) :
+     *   - le report est limite a 5 exercices ;
+     *   - l'imputation se fait du deficit le plus ancien au plus recent ;
+     *   - un deficit ignore (plus de 5 ans, ou exercice non anterieur) est
+     *     signale mais n'est pas impute.
+     *
+     * @return la base apres imputation (jamais negative)
+     */
+    private BigDecimal imputerDeficits(BigDecimal base,
+                                       int anneeExercice,
+                                       List<DeficitReportable> deficits,
+                                       List<String> etapes,
+                                       List<String> avertissements) {
+        if (deficits == null || deficits.isEmpty()) {
+            return base;
+        }
+        List<DeficitReportable> valides = new ArrayList<>();
+        for (DeficitReportable d : deficits) {
+            if (d == null || d.montant() == null || d.montant().signum() <= 0) {
+                continue;
+            }
+            int anciennete = anneeExercice - d.anneeOrigine();
+            if (anciennete <= 0) {
+                avertissements.add("Deficit de l'exercice " + d.anneeOrigine()
+                        + " ignore : exercice d'origine non anterieur a l'exercice " + anneeExercice + ".");
+            } else if (anciennete > 5) {
+                avertissements.add("Deficit de l'exercice " + d.anneeOrigine()
+                        + " (" + d.montant() + " Ar) ignore : report limite a 5 exercices (CDI 01.01.10).");
+            } else {
+                valides.add(d);
+            }
+        }
+        valides.sort(Comparator.comparingInt(DeficitReportable::anneeOrigine));
+
+        BigDecimal baseRestante = base;
+        for (DeficitReportable d : valides) {
+            if (baseRestante.signum() <= 0) {
+                etapes.add("Deficit " + d.anneeOrigine() + " (" + d.montant()
+                        + " Ar) non impute : base imposable deja epuisee");
+                continue;
+            }
+            BigDecimal impute = baseRestante.min(d.montant());
+            baseRestante = baseRestante.subtract(impute);
+            etapes.add("Imputation deficit " + d.anneeOrigine() + " : -" + impute
+                    + " Ar (solde reporte " + (d.montant().subtract(impute)) + " Ar)");
+        }
+        return baseRestante;
     }
 
     /**
@@ -156,6 +220,7 @@ public class CalculerIrUseCase {
     /**
      * Determination du taux selon la categorie (CDI 01.01.05, 01.01.14 V, 01.01.15).
      *   - EDUCATION, SANTE (sous autorisation/option) : 10%
+     *   - OSBL (organismes sans but lucratif) : 10%
      *   - Toutes les autres (dont CARBURANT_DETAIL) : 20%
      *
      * La vente de carburant au detail est imposee a 20% sur le benefice ; le
@@ -164,6 +229,9 @@ public class CalculerIrUseCase {
     private BigDecimal determinerTaux(CategorieActivite categorie, boolean regimeReduit) {
         if (regimeReduit) {
             return parametreFiscalService.getValeur("IR_TAUX_EDUCATION_SANTE");
+        }
+        if (categorie == CategorieActivite.OSBL) {
+            return parametreFiscalService.getValeur("IR_TAUX_OSBL");
         }
         return parametreFiscalService.getValeur("IR_TAUX_NORMAL");
     }

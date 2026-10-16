@@ -37,6 +37,7 @@ public class Contribuable {
     private LocalDate dateImmatriculation;
     private Boolean autorisationOuverture;
     private Boolean optionSante;
+    private LocalDate dateCloture;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
 }

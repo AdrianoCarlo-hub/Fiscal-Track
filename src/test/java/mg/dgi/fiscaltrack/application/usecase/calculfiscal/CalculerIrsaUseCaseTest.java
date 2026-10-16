@@ -97,4 +97,32 @@ class CalculerIrsaUseCaseTest {
 
         assertEquals(0, r.getSolde().compareTo(new BigDecimal("3000")));
     }
+
+    @Test
+    @DisplayName("IRSA salaire eleve + plusieurs personnes a charge")
+    void irsaSalaireElevePlusieursCharges() {
+        ResultatCalculFiscal r = useCase.execute(
+                new BigDecimal("2000000"), BigDecimal.ZERO,
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, 5);
+
+        // Bareme :
+        //   350 000 x 0%   = 0
+        //   50 000  x 5%   = 2 500
+        //   100 000 x 10%  = 10 000
+        //   100 000 x 15%  = 15 000
+        //   1 400 000 x 20% = 280 000
+        // Total = 307 500 ; reduction = 5 x 2 000 = 10 000
+        assertEquals(0, r.getSolde().compareTo(new BigDecimal("297500")));
+    }
+
+    @Test
+    @DisplayName("IRSA reduction passant sous le plancher (comportement a confirmer)")
+    void irsaReductionSousPlancher() {
+        ResultatCalculFiscal r = useCase.execute(
+                new BigDecimal("100000"), BigDecimal.ZERO,
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, 2);
+
+        // Bareme = 0 -> plancher 3 000 ; reduction 4 000 -> 0 (cf. QUESTIONS_ENCADREUR.md)
+        assertEquals(0, r.getSolde().compareTo(BigDecimal.ZERO));
+    }
 }

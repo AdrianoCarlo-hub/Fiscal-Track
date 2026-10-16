@@ -13,7 +13,7 @@ import java.util.List;
 /**
  * Calcul de la Taxe sur la Valeur Ajoutee (TVA).
  *
- * Taux : 20% (normal), 0% (exportations) (CDI 06.01.12).
+ * Taux : 20% (normal), 5% (gaz butane), 0% (exportations) (CDI 06.01.12).
  * TVA nette = TVA collectee - TVA deductible.
  * Si negatif : credit de TVA reportable.
  * Seuil d'assujettissement : 400 000 000 Ar (CDI 06.01.04).
@@ -32,6 +32,15 @@ public class CalculerTvaUseCase {
                                           BigDecimal tvaDeductible,
                                           BigDecimal creditTvaAnterieur,
                                           boolean exportation) {
+        return execute(tvaCollectee, tvaDeductible, creditTvaAnterieur, exportation, false, null);
+    }
+
+    public ResultatCalculFiscal execute(BigDecimal tvaCollectee,
+                                          BigDecimal tvaDeductible,
+                                          BigDecimal creditTvaAnterieur,
+                                          boolean exportation,
+                                          boolean gazButane,
+                                          BigDecimal chiffreAffaires) {
 
         if (tvaCollectee == null || tvaCollectee.signum() < 0) {
             throw new CalculFiscalInvalideException("La TVA collectee est obligatoire et positive");
@@ -40,8 +49,21 @@ public class CalculerTvaUseCase {
             throw new CalculFiscalInvalideException("La TVA deductibile est obligatoire et positive");
         }
 
+        // Taux applique : 0% export, 5% gaz butane, 20% normal (CDI 06.01.12)
+        BigDecimal tauxApplique;
+        if (exportation) {
+            tauxApplique = parametreFiscalService.getValeur("TVA_TAUX_EXPORT");
+        } else if (gazButane) {
+            tauxApplique = parametreFiscalService.getValeur("TVA_TAUX_GAZ_BUTANE");
+        } else {
+            tauxApplique = parametreFiscalService.getValeur("TVA_TAUX_NORMAL");
+        }
+
+        // Les exportations sont taxees a 0% : la TVA collectee doit etre ramenee a 0.
+        BigDecimal tvaCollecteeRetenue = exportation ? BigDecimal.ZERO : tvaCollectee;
+
         // TVA nette
-        BigDecimal tvaNette = tvaCollectee.subtract(tvaDeductible);
+        BigDecimal tvaNette = tvaCollecteeRetenue.subtract(tvaDeductible);
 
         // Prise en compte du credit anterieur
         BigDecimal creditNvl = nvl(creditTvaAnterieur);
@@ -57,13 +79,13 @@ public class CalculerTvaUseCase {
             tvaDue = tvaNette.setScale(2, RoundingMode.HALF_UP);
         }
 
-        // Taux applique : 0% pour exportation, sinon 20% (CDI 06.01.12)
-        BigDecimal tauxApplique = exportation 
-                ? parametreFiscalService.getValeur("TVA_TAUX_EXPORT")
-                : parametreFiscalService.getValeur("TVA_TAUX_NORMAL");
-
         List<String> etapes = new ArrayList<>();
-        etapes.add("TVA collectee : " + tvaCollectee + " Ar");
+        if (exportation) {
+            etapes.add("Exportation : TVA collectee ramenee a 0 (taux 0%)");
+        } else if (gazButane) {
+            etapes.add("Gaz butane : taux reduit 5%");
+        }
+        etapes.add("TVA collectee : " + tvaCollecteeRetenue + " Ar");
         etapes.add("TVA deductibile : " + tvaDeductible + " Ar");
         if (creditNvl.signum() > 0) {
             etapes.add("Credit TVA anterieur : -" + creditNvl + " Ar");
@@ -75,15 +97,27 @@ public class CalculerTvaUseCase {
             etapes.add("TVA a payer : " + tvaDue + " Ar");
         }
 
+        // Controle du seuil d'assujettissement (CDI 06.01.04)
+        List<String> avertissements = new ArrayList<>();
+        if (chiffreAffaires != null) {
+            BigDecimal seuil = parametreFiscalService.getValeur("TVA_SEUIL_ASSUJETTISSEMENT");
+            if (chiffreAffaires.signum() >= 0 && chiffreAffaires.compareTo(seuil) < 0) {
+                avertissements.add("Chiffre d'affaires (" + chiffreAffaires
+                        + " Ar) inferieur au seuil d'assujettissement TVA (" + seuil
+                        + " Ar) : contribuable normalement non assujetti (CDI 06.01.04).");
+            }
+        }
+
         return ResultatCalculFiscal.builder()
                 .typeImpot("TVA")
                 .tauxApplique(tauxApplique)
-                .baseImposable(tvaCollectee)
+                .baseImposable(tvaCollecteeRetenue)
                 .montantBrut(tvaNette)
                 .creditFiscal(credit)
                 .solde(tvaDue)
                 .explication("TVA = TVA collectee - TVA deductibile - credit anterieur")
                 .etapesCalcul(etapes)
+                .avertissements(avertissements)
                 .build();
     }
 

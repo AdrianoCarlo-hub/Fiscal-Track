@@ -90,6 +90,10 @@ public class CalculerIrsaUseCase {
         BigDecimal reduction = reductionParPersonne.multiply(BigDecimal.valueOf(nombrePersonnesCharge));
 
         // IRSA du
+        // NOTE : l'ordre relatif entre le plancher (minimum de perception) et la
+        // reduction pour charges n'est pas verifiable (CDI indisponible). Comportement
+        // retenu : plancher applique d'abord, puis reduction (peut descendre sous le
+        // plancher). Question ouverte : QUESTIONS_ENCADREUR.md.
         BigDecimal irsaDu = impot.max(minimum).subtract(reduction);
         if (irsaDu.signum() < 0) irsaDu = BigDecimal.ZERO;
 

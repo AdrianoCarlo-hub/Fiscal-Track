@@ -26,6 +26,10 @@ class CalculerTvaUseCaseTest {
                 .thenReturn(new BigDecimal("0.20"));
         Mockito.when(parametreFiscalService.getValeur("TVA_TAUX_EXPORT"))
                 .thenReturn(new BigDecimal("0.00"));
+        Mockito.when(parametreFiscalService.getValeur("TVA_TAUX_GAZ_BUTANE"))
+                .thenReturn(new BigDecimal("0.05"));
+        Mockito.when(parametreFiscalService.getValeur("TVA_SEUIL_ASSUJETTISSEMENT"))
+                .thenReturn(new BigDecimal("400000000"));
     }
 
     @Test
@@ -70,7 +74,7 @@ class CalculerTvaUseCaseTest {
     }
 
     @Test
-    @DisplayName("TVA export : taux 0%")
+    @DisplayName("TVA export : taux 0% et TVA collectee ramenee a 0")
     void tvaExport() {
         ResultatCalculFiscal r = useCase.execute(
                 new BigDecimal("1000000"),
@@ -79,6 +83,53 @@ class CalculerTvaUseCaseTest {
                 true);
 
         assertEquals(0, r.getTauxApplique().compareTo(new BigDecimal("0.00")));
+        // Exportation : collectee ramenee a 0 -> nette = -400 000 -> credit
+        assertEquals(0, r.getBaseImposable().compareTo(BigDecimal.ZERO));
+        assertEquals(0, r.getSolde().compareTo(BigDecimal.ZERO));
+        assertEquals(0, r.getCreditFiscal().compareTo(new BigDecimal("400000")));
+    }
+
+    @Test
+    @DisplayName("TVA gaz butane : taux reduit 5%")
+    void tvaGazButane() {
+        ResultatCalculFiscal r = useCase.execute(
+                new BigDecimal("1000000"),
+                new BigDecimal("400000"),
+                BigDecimal.ZERO,
+                false,
+                true,
+                null);
+
+        assertEquals(0, r.getTauxApplique().compareTo(new BigDecimal("0.05")));
+        // La TVA nette reste collectee - deductible
         assertEquals(0, r.getSolde().compareTo(new BigDecimal("600000")));
+    }
+
+    @Test
+    @DisplayName("TVA seuil : CA sous le seuil -> avertissement")
+    void tvaSeuilSous() {
+        ResultatCalculFiscal r = useCase.execute(
+                new BigDecimal("1000000"),
+                new BigDecimal("400000"),
+                BigDecimal.ZERO,
+                false,
+                false,
+                new BigDecimal("100000000"));
+
+        assertFalse(r.getAvertissements().isEmpty());
+    }
+
+    @Test
+    @DisplayName("TVA seuil : CA au-dessus du seuil -> pas d'avertissement")
+    void tvaSeuilOk() {
+        ResultatCalculFiscal r = useCase.execute(
+                new BigDecimal("1000000"),
+                new BigDecimal("400000"),
+                BigDecimal.ZERO,
+                false,
+                false,
+                new BigDecimal("500000000"));
+
+        assertTrue(r.getAvertissements().isEmpty());
     }
 }
