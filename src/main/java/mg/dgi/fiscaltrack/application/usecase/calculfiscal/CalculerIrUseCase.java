@@ -73,8 +73,11 @@ public class CalculerIrUseCase {
         if (categorie == CategorieActivite.ASSOCIE_GERANT_SARL) {
             BigDecimal abattement = parametreFiscalService.getValeur("IR_ABATTEMENT_SARL");
             base = base.subtract(abattement);
-            if (base.signum() < 0) base = BigDecimal.ZERO;
         }
+
+        // La base imposable n'est jamais negative : en cas de deficit, la base
+        // est nulle et le minimum de perception reste du (CDI 01.01.05).
+        if (base.signum() < 0) base = BigDecimal.ZERO;
 
         // Arrondi au millier inferieur (CDI 01.01.05)
         base = arrondirMillier(base);

@@ -134,3 +134,65 @@ ON CONFLICT (code) DO NOTHING;
 INSERT INTO parametres_fiscaux (code, valeur, annee_debut, annee_fin, base_legale, secteur, description) VALUES
 ('REGIME_TVA_SEUIL', 400000000, 2026, null, 'CDI 06.01.04', 'REGIME', 'Seuil TVA (400M)')
 ON CONFLICT (code) DO NOTHING;
+-- ============================================
+-- SEUILS DE L'AMENDE DE DEFAUT DE DEPOT (CDI 20.01.52)
+-- Distincts des seuils de penalite de retard (CDI 20.01.53)
+-- afin que l'amende ne lise jamais un parametre "PENALITE_*".
+-- ============================================
+INSERT INTO parametres_fiscaux (code, valeur, annee_debut, annee_fin, base_legale, secteur, description) VALUES
+('AMENDE_SEUIL_GRANDE_ENTREPRISE', 400000000, 2026, null, 'CDI 20.01.52', 'DEFAUT_DEPOT', 'Seuil CA grande entreprise amende (>= 400M)'),
+('AMENDE_SEUIL_MOYENNE_ENTREPRISE', 200000000, 2026, null, 'CDI 20.01.52', 'DEFAUT_DEPOT', 'Seuil CA moyenne entreprise amende (>= 200M)'),
+('AMENDE_SEUIL_PETITE_ENTREPRISE', 50000000, 2026, null, 'CDI 20.01.52', 'DEFAUT_DEPOT', 'Seuil CA petite entreprise amende (>= 50M)')
+ON CONFLICT (code) DO NOTHING;
+
+-- ============================================
+-- TYPES D'IMPOTS - catalogue de depart
+-- Seuls les impots generant automatiquement des obligations sont
+-- seeds ici (periodicite MENSUELLE ou ANNUELLE, parcourues par le
+-- scheduler). IMP, IPVI, IRCM et les acomptes sont crees a la
+-- demande par un administrateur (page Parametres).
+-- ============================================
+INSERT INTO types_impots (code_impot, nom_impot, periodicite, echeance_theorique_jour, echeance_theorique_mois, created_at, updated_at) VALUES
+('IR', 'Impot sur les Revenus', 'ANNUELLE', 15, 5, NOW(), NOW()),
+('IS', 'Impot Synthetique', 'ANNUELLE', 31, 3, NOW(), NOW()),
+('TVA', 'Taxe sur la Valeur Ajoutee', 'MENSUELLE', 15, null, NOW(), NOW()),
+('IRSA', 'Impot sur les Revenus Salariaux', 'MENSUELLE', 15, null, NOW(), NOW()),
+('ACOMPTE_IR', 'Acompte provisionnel IR', 'ANNUELLE', 31, 3, NOW(), NOW())
+ON CONFLICT (code_impot) DO NOTHING;
+
+-- ============================================
+-- JOURS FERIES 2026 (Madagascar)
+-- Donnee de report des echeances (RC1). L'administrateur peut
+-- completer ou corriger cette liste via la page Parametres.
+-- ============================================
+INSERT INTO jours_feries (date_ferie, description, created_at) VALUES
+('2026-01-01', 'Jour de l''An', NOW()),
+('2026-02-06', 'Journee des Martyrs', NOW()),
+('2026-04-03', 'Vendredi Saint', NOW()),
+('2026-04-06', 'Lundi de Paques', NOW()),
+('2026-05-01', 'Fete du Travail', NOW()),
+('2026-05-14', 'Ascension', NOW()),
+('2026-05-25', 'Lundi de Pentecote', NOW()),
+('2026-06-26', 'Fete de l''Independance', NOW()),
+('2026-08-15', 'Assomption', NOW()),
+('2026-11-01', 'Toussaint', NOW()),
+('2026-12-25', 'Noel', NOW())
+ON CONFLICT (date_ferie) DO NOTHING;
+
+-- ============================================
+-- AGENTS DE TEST (comptes affiches sur la page de connexion)
+-- Mot de passe commun : password123 (BCrypt)
+-- ============================================
+INSERT INTO agents_fiscaux (id_agent, nom_agent, prenom_agent, email_agent, telephone_agent, mot_de_passe_hash_agent, division, role_securite, created_at, updated_at) VALUES
+('AG0001', 'RABENJA', 'Hery', 'admin@impots.mg', '0341234567', '$2a$10$xppsnB9gYQu.hJaRTX5IyOc5gxCAJejG5OSQ0Umyktsuzxqy43Fi6', 'DIRECTEUR', 'ADMIN', NOW(), NOW()),
+('AG0002', 'RAKOTO', 'Jean', 'rakoto.jean@impots.mg', '0342345678', '$2a$10$xppsnB9gYQu.hJaRTX5IyOc5gxCAJejG5OSQ0Umyktsuzxqy43Fi6', 'GESTION', 'AGENT_GESTION', NOW(), NOW()),
+('AG0003', 'ANDRY', 'Lova', 'andry.lova@impots.mg', '0343456789', '$2a$10$xppsnB9gYQu.hJaRTX5IyOc5gxCAJejG5OSQ0Umyktsuzxqy43Fi6', 'RECETTE', 'AGENT_RECETTE', NOW(), NOW())
+ON CONFLICT (id_agent) DO NOTHING;
+
+-- ============================================
+-- CONTRIBUABLE DE TEST (compte affiche sur la page de connexion)
+-- Mot de passe : password123 (BCrypt)
+-- ============================================
+INSERT INTO contribuables (nif, raison_sociale, forme_juridique, nom_dirigeant, prenom_dirigeant, email_contribuable, telephone_contribuable, adresse_contribuable, commune_contribuable, mot_de_passe_hash_contribuable, regime_imposition, obligation_comptable, statut_activite, date_immatriculation, autorisation_ouverture, option_sante, created_at, updated_at) VALUES
+('NIF0000001', 'SARL EXEMPLE', 'SARL', 'RABE', 'Miora', 'contact@sarl-exemple.mg', '0344567890', 'Lot II M 34 Bis Antsakaviro', 'ANTANANARIVO', '$2a$10$xppsnB9gYQu.hJaRTX5IyOc5gxCAJejG5OSQ0Umyktsuzxqy43Fi6', 'COMMERCANT', 'COMPTABILITE_COMPLETE', 'ACTIF', '2026-01-05', null, false, NOW(), NOW())
+ON CONFLICT (nif) DO NOTHING;

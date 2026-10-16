@@ -27,11 +27,14 @@ class CalculerAmendeDefautDepotUseCaseTest {
         parametreFiscalService = Mockito.mock(ParametreFiscalService.class);
         useCase = new CalculerAmendeDefautDepotUseCase(declarationRepositoryPort, parametreFiscalService);
 
-        // Mock des parametres fiscaux
-        when(parametreFiscalService.getValeur("PENALITE_SEUIL_GRANDE_ENTREPRISE"))
+        // Mock des parametres fiscaux (codes dedies a l'amende, distincts
+        // des seuils de penalite de retard)
+        when(parametreFiscalService.getValeur("AMENDE_SEUIL_GRANDE_ENTREPRISE"))
                 .thenReturn(new BigDecimal("400000000"));
-        when(parametreFiscalService.getValeur("PENALITE_SEUIL_MOYENNE_ENTREPRISE"))
+        when(parametreFiscalService.getValeur("AMENDE_SEUIL_MOYENNE_ENTREPRISE"))
                 .thenReturn(new BigDecimal("200000000"));
+        when(parametreFiscalService.getValeur("AMENDE_SEUIL_PETITE_ENTREPRISE"))
+                .thenReturn(new BigDecimal("50000000"));
         when(parametreFiscalService.getValeur("DEFAUT_DEPOT_GRANDE_ENTREPRISE"))
                 .thenReturn(new BigDecimal("200000"));
         when(parametreFiscalService.getValeur("DEFAUT_DEPOT_MOYENNE_ENTREPRISE"))

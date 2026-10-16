@@ -56,11 +56,14 @@ public class CalculerAmendeDefautDepotUseCase {
      *   - 200M <= CA < 400M : 100 000 Ar
      *   - 50M <= CA < 200M : 50 000 Ar
      *   - CA < 50M : 20 000 Ar
+     *
+     * Les seuils de l'amende sont distincts de ceux de la penalite de
+     * retard (codes AMENDE_SEUIL_* vs PENALITE_SEUIL_*).
      */
     private BigDecimal determinerAmende(BigDecimal chiffreAffaires) {
-        BigDecimal seuil400M = parametreFiscalService.getValeur("PENALITE_SEUIL_GRANDE_ENTREPRISE");
-        BigDecimal seuil200M = parametreFiscalService.getValeur("PENALITE_SEUIL_MOYENNE_ENTREPRISE");
-        BigDecimal seuil50M = new BigDecimal("50000000");
+        BigDecimal seuil400M = parametreFiscalService.getValeur("AMENDE_SEUIL_GRANDE_ENTREPRISE");
+        BigDecimal seuil200M = parametreFiscalService.getValeur("AMENDE_SEUIL_MOYENNE_ENTREPRISE");
+        BigDecimal seuil50M = parametreFiscalService.getValeur("AMENDE_SEUIL_PETITE_ENTREPRISE");
 
         if (chiffreAffaires.compareTo(seuil400M) >= 0) {
             return parametreFiscalService.getValeur("DEFAUT_DEPOT_GRANDE_ENTREPRISE");
