@@ -22,6 +22,11 @@ public interface ParametreFiscalJpaRepository extends JpaRepository<ParametreFis
     Optional<ParametreFiscalEntity> findByCode(String code);
 
     /**
+     * Retourne tous les parametres tries par code.
+     */
+    List<ParametreFiscalEntity> findAllByOrderByCodeAsc();
+
+    /**
      * Trouve tous les parametres applicables pour une annee donnee.
      * annee_fin peut etre NULL (parametre sans date de fin) : dans ce cas le
      * parametre reste applicable. Une requete derivee du nom de methode

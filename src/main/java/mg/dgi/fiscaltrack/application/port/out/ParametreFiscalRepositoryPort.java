@@ -18,6 +18,11 @@ public interface ParametreFiscalRepositoryPort {
     Optional<ParametreFiscal> findByCode(String code);
 
     /**
+     * Retourne tous les parametres fiscaux (tri par code).
+     */
+    List<ParametreFiscal> findAll();
+
+    /**
      * Recupere la valeur d'un parametre par son code.
      * @throws IllegalArgumentException si le parametre n'existe pas
      */

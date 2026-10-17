@@ -41,7 +41,8 @@ public class AdminController {
     }
 
     @PostMapping("/utilisateurs")
-    public ResponseEntity<Map<String, Object>> ajouterAgent(@RequestBody Map<String, String> request) {
+    public ResponseEntity<Map<String, Object>> ajouterAgent(@RequestBody Map<String, String> request,
+                                                            java.security.Principal principal) {
         AgentFiscal agent = AgentFiscal.builder()
                 .idAgent(request.get("idAgent"))
                 .nomAgent(request.get("nomAgent"))
@@ -52,13 +53,54 @@ public class AdminController {
                 .division(Division.valueOf(request.get("division")))
                 .roleSecurite(RoleSecurite.valueOf(request.get("roleSecurite")))
                 .build();
-        return ResponseEntity.ok(toAgentMap(utilisateursUseCase.ajouter(agent)));
+        String auteur = principal == null ? null : principal.getName();
+        return ResponseEntity.ok(toAgentMap(utilisateursUseCase.ajouter(agent, auteur)));
+    }
+
+    @PutMapping("/utilisateurs/{id}")
+    public ResponseEntity<Map<String, Object>> modifierAgent(@PathVariable String id,
+                                                             @RequestBody Map<String, String> request,
+                                                             java.security.Principal principal) {
+        AgentFiscal donnees = AgentFiscal.builder()
+                .nomAgent(request.get("nomAgent"))
+                .prenomAgent(request.get("prenomAgent"))
+                .emailAgent(request.get("emailAgent"))
+                .telephoneAgent(request.get("telephoneAgent"))
+                .motDePasseHashAgent(request.get("motDePasseHashAgent"))
+                .division(parseDivision(request.get("division")))
+                .roleSecurite(parseRole(request.get("roleSecurite")))
+                .build();
+        String auteur = principal == null ? null : principal.getName();
+        return ResponseEntity.ok(toAgentMap(utilisateursUseCase.modifier(id, donnees, auteur)));
     }
 
     @DeleteMapping("/utilisateurs/{id}")
-    public ResponseEntity<Void> supprimerAgent(@PathVariable String id) {
-        utilisateursUseCase.supprimer(id);
+    public ResponseEntity<Void> supprimerAgent(@PathVariable String id,
+                                               java.security.Principal principal) {
+        utilisateursUseCase.supprimer(id, principal == null ? null : principal.getName());
         return ResponseEntity.noContent().build();
+    }
+
+    private Division parseDivision(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return Division.valueOf(value);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private RoleSecurite parseRole(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return RoleSecurite.valueOf(value);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     // ===================== JOURS FERIES =====================

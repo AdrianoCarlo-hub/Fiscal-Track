@@ -1,6 +1,7 @@
 package mg.dgi.fiscaltrack.application.usecase.typeimpot;
 
 import mg.dgi.fiscaltrack.application.port.out.TypeImpotRepositoryPort;
+import mg.dgi.fiscaltrack.application.usecase.historique.EnregistrerActionUseCase;
 import mg.dgi.fiscaltrack.domain.model.TypeImpot;
 import org.springframework.stereotype.Service;
 
@@ -8,12 +9,19 @@ import org.springframework.stereotype.Service;
 public class ModifierTypeImpotUseCase {
 
     private final TypeImpotRepositoryPort repositoryPort;
+    private final EnregistrerActionUseCase enregistrerActionUseCase;
 
-    public ModifierTypeImpotUseCase(TypeImpotRepositoryPort repositoryPort) {
+    public ModifierTypeImpotUseCase(TypeImpotRepositoryPort repositoryPort,
+                                    EnregistrerActionUseCase enregistrerActionUseCase) {
         this.repositoryPort = repositoryPort;
+        this.enregistrerActionUseCase = enregistrerActionUseCase;
     }
 
     public TypeImpot execute(String codeImpot, TypeImpot donneesModifiees) {
+        return execute(codeImpot, donneesModifiees, null);
+    }
+
+    public TypeImpot execute(String codeImpot, TypeImpot donneesModifiees, String auteur) {
         TypeImpot existant = repositoryPort.findByCodeImpot(codeImpot)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Type d'impot introuvable avec le code : " + codeImpot));
@@ -31,6 +39,12 @@ public class ModifierTypeImpotUseCase {
             existant.setEcheanceTheoriqueMois(donneesModifiees.getEcheanceTheoriqueMois());
         }
 
-        return repositoryPort.save(existant);
+        TypeImpot saved = repositoryPort.save(existant);
+
+        enregistrerActionUseCase.execute(
+                auteur == null ? "SYSTEME" : auteur,
+                "MODIFICATION_TYPE_IMPOT",
+                "Modification du type d'impot " + saved.getCodeImpot());
+        return saved;
     }
 }

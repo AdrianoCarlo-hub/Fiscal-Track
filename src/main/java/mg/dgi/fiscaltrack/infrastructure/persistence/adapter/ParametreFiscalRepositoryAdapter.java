@@ -35,6 +35,14 @@ public class ParametreFiscalRepositoryAdapter implements ParametreFiscalReposito
     }
 
     @Override
+    public java.util.List<ParametreFiscal> findAll() {
+        return jpaRepository.findAllByOrderByCodeAsc()
+                .stream()
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public BigDecimal getValeurByCode(String code) {
         return jpaRepository.findByCode(code)
                 .map(ParametreFiscalEntity::getValeur)

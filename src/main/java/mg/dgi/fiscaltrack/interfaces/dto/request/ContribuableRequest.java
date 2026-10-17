@@ -34,7 +34,12 @@ public class ContribuableRequest {
     private String adresseContribuable;
     private String communeContribuable;
 
-    @NotBlank(message = "Le mot de passe est obligatoire")
+    /**
+     * Mot de passe en clair fourni par le client. Il est encode (BCrypt) cote
+     * serveur avant persistance et n'est jamais renvoye dans les reponses.
+     * Obligatoire a la creation, facultatif a la modification (si absent, le
+     * mot de passe existant est conserve).
+     */
     private String motDePasseHashContribuable;
 
     private String regimeImposition;

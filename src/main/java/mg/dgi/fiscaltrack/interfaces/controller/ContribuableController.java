@@ -74,17 +74,21 @@ public class ContribuableController {
 
     @PostMapping
     @PreAuthorize("hasAnyRole('AGENT_GESTION','ADMIN')")
-    public ResponseEntity<ContribuableResponse> ajouter(@Valid @RequestBody ContribuableRequest request) {
+    public ResponseEntity<ContribuableResponse> ajouter(@Valid @RequestBody ContribuableRequest request,
+                                                         java.security.Principal principal) {
         Contribuable contribuable = toDomain(request);
-        return ResponseEntity.ok(toResponse(ajouterUseCase.execute(contribuable)));
+        String auteur = principal == null ? null : principal.getName();
+        return ResponseEntity.ok(toResponse(ajouterUseCase.execute(contribuable, auteur)));
     }
 
     @PutMapping("/{nif}")
     @PreAuthorize("hasAnyRole('AGENT_GESTION','ADMIN')")
     public ResponseEntity<ContribuableResponse> modifier(@PathVariable String nif,
-                                                          @Valid @RequestBody ContribuableRequest request) {
+                                                          @Valid @RequestBody ContribuableRequest request,
+                                                          java.security.Principal principal) {
         Contribuable donnees = toDomain(request);
-        return ResponseEntity.ok(toResponse(modifierUseCase.execute(nif, donnees)));
+        String auteur = principal == null ? null : principal.getName();
+        return ResponseEntity.ok(toResponse(modifierUseCase.execute(nif, donnees, auteur)));
     }
 
     private Contribuable toDomain(ContribuableRequest r) {
