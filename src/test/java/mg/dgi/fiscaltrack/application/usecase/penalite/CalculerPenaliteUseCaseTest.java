@@ -2,10 +2,12 @@ package mg.dgi.fiscaltrack.application.usecase.penalite;
 
 import mg.dgi.fiscaltrack.application.port.out.CompteCourantFiscalRepositoryPort;
 import mg.dgi.fiscaltrack.application.port.out.DeclarationRepositoryPort;
+import mg.dgi.fiscaltrack.application.port.out.HistoriquePenaliteRepositoryPort;
 import mg.dgi.fiscaltrack.application.usecase.admin.ParametreFiscalService;
 import mg.dgi.fiscaltrack.domain.enums.StatutRecouvrement;
 import mg.dgi.fiscaltrack.domain.model.CompteCourantFiscal;
 import mg.dgi.fiscaltrack.domain.model.Declaration;
+import mg.dgi.fiscaltrack.domain.model.HistoriquePenalite;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,12 +20,15 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class CalculerPenaliteUseCaseTest {
 
     private CompteCourantFiscalRepositoryPort compteRepositoryPort;
     private DeclarationRepositoryPort declarationRepositoryPort;
+    private HistoriquePenaliteRepositoryPort historiquePenaliteRepositoryPort;
     private ParametreFiscalService parametreFiscalService;
     private CalculerPenaliteUseCase useCase;
 
@@ -31,6 +36,7 @@ class CalculerPenaliteUseCaseTest {
     void setUp() {
         compteRepositoryPort = Mockito.mock(CompteCourantFiscalRepositoryPort.class);
         declarationRepositoryPort = Mockito.mock(DeclarationRepositoryPort.class);
+        historiquePenaliteRepositoryPort = Mockito.mock(HistoriquePenaliteRepositoryPort.class);
         parametreFiscalService = Mockito.mock(ParametreFiscalService.class);
 
         when(compteRepositoryPort.save(any(CompteCourantFiscal.class)))
@@ -52,7 +58,8 @@ class CalculerPenaliteUseCaseTest {
         when(parametreFiscalService.getValeur("PENALITE_PLANCHER"))
                 .thenReturn(new BigDecimal("10000"));
 
-        useCase = new CalculerPenaliteUseCase(compteRepositoryPort, declarationRepositoryPort, parametreFiscalService);
+        useCase = new CalculerPenaliteUseCase(compteRepositoryPort, declarationRepositoryPort,
+                historiquePenaliteRepositoryPort, parametreFiscalService);
     }
 
     private void preparerContexte(BigDecimal chiffreAffaires, BigDecimal principal) {
@@ -184,5 +191,82 @@ class CalculerPenaliteUseCaseTest {
         preparerContexte(new BigDecimal("400000000"), new BigDecimal("1000000"));
         penalites = useCase.execute(1L, dateLimite);
         assertEquals(0, penalites.compareTo(new BigDecimal("30000"))); // 1M * 0.03 = 30 000
+    }
+
+    @Test
+    @DisplayName("2.1 - Un compte solde n'est jamais recalcule")
+    void compteSoldeNonRecalcule() {
+        CompteCourantFiscal compte = CompteCourantFiscal.builder()
+                .idCompte(1L)
+                .idDeclaration(10L)
+                .nif("NIF0000001")
+                .montantPrincipal(new BigDecimal("10000000"))
+                .montantPenalites(new BigDecimal("12345"))
+                .montantPaye(new BigDecimal("10000000"))
+                .statutRecouvrement(StatutRecouvrement.SOLDE)
+                .build();
+        when(compteRepositoryPort.findById(1L)).thenReturn(Optional.of(compte));
+
+        BigDecimal penalites = useCase.execute(1L, LocalDate.now().minusMonths(3));
+
+        assertEquals(0, penalites.compareTo(new BigDecimal("12345")));
+        verify(compteRepositoryPort, times(0)).save(any(CompteCourantFiscal.class));
+        verify(historiquePenaliteRepositoryPort, times(0)).save(any(HistoriquePenalite.class));
+    }
+
+    @Test
+    @DisplayName("2.1 - La penalite porte sur le principal restant du")
+    void penaliteSurPrincipalRestantDu() {
+        CompteCourantFiscal compte = CompteCourantFiscal.builder()
+                .idCompte(1L)
+                .idDeclaration(10L)
+                .nif("NIF0000001")
+                .montantPrincipal(new BigDecimal("10000000"))
+                .montantPenalites(BigDecimal.ZERO)
+                .montantPaye(new BigDecimal("4000000"))
+                .statutRecouvrement(StatutRecouvrement.PARTIEL)
+                .build();
+        when(compteRepositoryPort.findById(1L)).thenReturn(Optional.of(compte));
+
+        Declaration declaration = Declaration.builder()
+                .idDeclaration(10L)
+                .chiffreAffairesDeclare(new BigDecimal("500000000"))
+                .build();
+        when(declarationRepositoryPort.findById(10L)).thenReturn(Optional.of(declaration));
+
+        BigDecimal penalites = useCase.execute(1L, LocalDate.now().minusMonths(1));
+
+        // (10M - 4M) * 0.03 = 180 000
+        assertEquals(0, penalites.compareTo(new BigDecimal("180000")));
+    }
+
+    @Test
+    @DisplayName("2.1 - Une ligne d'historique est ecrite a chaque changement de montant")
+    void historiqueEcritALaModification() {
+        preparerContexte(new BigDecimal("500000000"), new BigDecimal("10000000"));
+        useCase.execute(1L, LocalDate.now().minusMonths(1));
+
+        verify(historiquePenaliteRepositoryPort, times(1)).save(any(HistoriquePenalite.class));
+    }
+
+    @Test
+    @DisplayName("2.1 - Pas d'historique si le montant est inchange")
+    void pasHistoriqueSiInchange() {
+        preparerContexte(new BigDecimal("500000000"), new BigDecimal("10000000"));
+        // Montant deja calcule identique (1 mois x 3% = 300 000)
+        CompteCourantFiscal compte = CompteCourantFiscal.builder()
+                .idCompte(1L)
+                .idDeclaration(10L)
+                .nif("NIF0000001")
+                .montantPrincipal(new BigDecimal("10000000"))
+                .montantPenalites(new BigDecimal("300000"))
+                .montantPaye(BigDecimal.ZERO)
+                .statutRecouvrement(StatutRecouvrement.NON_SOLDE)
+                .build();
+        when(compteRepositoryPort.findById(1L)).thenReturn(Optional.of(compte));
+
+        useCase.execute(1L, LocalDate.now().minusMonths(1));
+
+        verify(historiquePenaliteRepositoryPort, times(0)).save(any(HistoriquePenalite.class));
     }
 }

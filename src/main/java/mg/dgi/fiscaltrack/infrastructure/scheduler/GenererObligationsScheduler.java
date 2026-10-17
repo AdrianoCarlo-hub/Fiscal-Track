@@ -2,6 +2,7 @@ package mg.dgi.fiscaltrack.infrastructure.scheduler;
 
 import mg.dgi.fiscaltrack.application.port.out.ContribuableRepositoryPort;
 import mg.dgi.fiscaltrack.application.port.out.TypeImpotRepositoryPort;
+import mg.dgi.fiscaltrack.application.usecase.obligation.GenererObligationsAcomptesUseCase;
 import mg.dgi.fiscaltrack.application.usecase.obligation.GenererObligationsUseCase;
 import mg.dgi.fiscaltrack.domain.enums.Periodicite;
 import mg.dgi.fiscaltrack.domain.enums.StatutActivite;
@@ -23,13 +24,16 @@ public class GenererObligationsScheduler {
     private final ContribuableRepositoryPort contribuableRepositoryPort;
     private final TypeImpotRepositoryPort typeImpotRepositoryPort;
     private final GenererObligationsUseCase genererObligationsUseCase;
+    private final GenererObligationsAcomptesUseCase genererObligationsAcomptesUseCase;
 
     public GenererObligationsScheduler(ContribuableRepositoryPort contribuableRepositoryPort,
                                         TypeImpotRepositoryPort typeImpotRepositoryPort,
-                                        GenererObligationsUseCase genererObligationsUseCase) {
+                                        GenererObligationsUseCase genererObligationsUseCase,
+                                        GenererObligationsAcomptesUseCase genererObligationsAcomptesUseCase) {
         this.contribuableRepositoryPort = contribuableRepositoryPort;
         this.typeImpotRepositoryPort = typeImpotRepositoryPort;
         this.genererObligationsUseCase = genererObligationsUseCase;
+        this.genererObligationsAcomptesUseCase = genererObligationsAcomptesUseCase;
     }
 
     /**
@@ -57,6 +61,19 @@ public class GenererObligationsScheduler {
     }
 
     /**
+     * Le 1er fevrier a 4h : genere les deux acomptes provisionnels IR
+     * de l'annee (periodes AAAA-AC1 et AAAA-AC2, echeances 31 mars et
+     * 30 juin avec report au jour ouvre).
+     */
+    @Scheduled(cron = "0 0 4 1 2 *")
+    public void genererObligationsAcomptes() {
+        int annee = LocalDate.now().getYear();
+        logger.info("[SCHEDULER] Debut generation obligations ACOMPTE IR pour {}", annee);
+        int compteur = genererObligationsAcomptesUseCase.execute(annee);
+        logger.info("[SCHEDULER] {} obligations d'acompte IR generees", compteur);
+    }
+
+    /**
      * Methode publique pour declenchement manuel via SchedulerController.
      */
     public int declencherMensuelles() {
@@ -65,6 +82,10 @@ public class GenererObligationsScheduler {
 
     public int declencherAnnuelles() {
         return genererPourPeriodicite(Periodicite.ANNUELLE, String.valueOf(LocalDate.now().getYear() - 1));
+    }
+
+    public int declencherAcomptes() {
+        return genererObligationsAcomptesUseCase.executePourAnneeCourante();
     }
 
     private int genererPourPeriodicite(Periodicite periodicite, String periodeFiscale) {

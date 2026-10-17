@@ -82,13 +82,14 @@ public class DeclarationController {
     }
 
     private Map<String, Object> toMap(Declaration d) {
-        return Map.of(
-                "idDeclaration", d.getIdDeclaration(),
-                "idObligationFiscale", d.getIdObligationFiscale(),
-                "chiffreAffairesDeclare", d.getChiffreAffairesDeclare(),
-                "impotPrincipalCalcule", d.getImpotPrincipalCalcule(),
-                "dateSoumission", d.getDateSoumission().toString(),
-                "statutValidation", d.getStatutValidation().name()
-        );
+        java.util.Map<String, Object> map = new java.util.LinkedHashMap<>();
+        map.put("idDeclaration", d.getIdDeclaration());
+        map.put("idObligationFiscale", d.getIdObligationFiscale());
+        map.put("chiffreAffairesDeclare", d.getChiffreAffairesDeclare());
+        map.put("impotPrincipalCalcule", d.getImpotPrincipalCalcule());
+        map.put("dateSoumission", d.getDateSoumission().toString());
+        map.put("statutValidation", d.getStatutValidation().name());
+        map.put("detailCalcul", d.getDetailCalcul());
+        return map;
     }
 }

@@ -1,6 +1,7 @@
 package mg.dgi.fiscaltrack.application.usecase.paiement;
 
 import mg.dgi.fiscaltrack.application.port.out.CompteCourantFiscalRepositoryPort;
+import mg.dgi.fiscaltrack.application.usecase.admin.ParametreFiscalService;
 import mg.dgi.fiscaltrack.domain.enums.StatutRecouvrement;
 import mg.dgi.fiscaltrack.domain.model.CompteCourantFiscal;
 import org.slf4j.Logger;
@@ -16,13 +17,17 @@ public class EmettreTitrePerceptionUseCase {
 
     private static final Logger logger = LoggerFactory.getLogger(EmettreTitrePerceptionUseCase.class);
 
-    // TODO: confirmer le delai reel avec le Centre Fiscal
-    private static final int DELAI_TITRE_JOURS = 30;
+    // Le delai est externalise (parametre RECOUVREMENT_DELAI_TITRE_JOURS).
+    // Valeur NON confirmee : le CPF n'a pas pu etre relu, voir QUESTIONS_ENCADREUR.md.
+    private static final String CODE_DELAI = "RECOUVREMENT_DELAI_TITRE_JOURS";
 
     private final CompteCourantFiscalRepositoryPort compteRepositoryPort;
+    private final ParametreFiscalService parametreFiscalService;
 
-    public EmettreTitrePerceptionUseCase(CompteCourantFiscalRepositoryPort compteRepositoryPort) {
+    public EmettreTitrePerceptionUseCase(CompteCourantFiscalRepositoryPort compteRepositoryPort,
+                                         ParametreFiscalService parametreFiscalService) {
         this.compteRepositoryPort = compteRepositoryPort;
+        this.parametreFiscalService = parametreFiscalService;
     }
 
     /**
@@ -31,7 +36,8 @@ public class EmettreTitrePerceptionUseCase {
      */
     @Transactional
     public int execute() {
-        LocalDate seuil = LocalDate.now().minusDays(DELAI_TITRE_JOURS);
+        long delaiJours = parametreFiscalService.getValeur(CODE_DELAI).longValue();
+        LocalDate seuil = LocalDate.now().minusDays(delaiJours);
         List<CompteCourantFiscal> eligibles = compteRepositoryPort.findEligiblesTitrePerception(seuil);
 
         int compteur = 0;

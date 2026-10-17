@@ -6,6 +6,7 @@ import mg.dgi.fiscaltrack.application.usecase.notification.EnvoyerNotificationUs
 import mg.dgi.fiscaltrack.application.usecase.notification.GenererAvisRetardUseCase;
 import mg.dgi.fiscaltrack.application.usecase.notification.GenererLettreRelanceUseCase;
 import mg.dgi.fiscaltrack.application.usecase.obligation.IdentifierRetardsUseCase;
+import mg.dgi.fiscaltrack.application.usecase.penalite.CalculerAmendeDefautDepotUseCase;
 import mg.dgi.fiscaltrack.application.usecase.penalite.CalculerPenaliteUseCase;
 import mg.dgi.fiscaltrack.domain.model.ObligationFiscale;
 import org.slf4j.Logger;
@@ -23,6 +24,7 @@ public class DetectionRetardScheduler {
     private final IdentifierRetardsUseCase identifierRetardsUseCase;
     private final EnvoyerNotificationUseCase envoyerNotificationUseCase;
     private final CalculerPenaliteUseCase calculerPenaliteUseCase;
+    private final CalculerAmendeDefautDepotUseCase calculerAmendeDefautDepotUseCase;
     private final GenererAvisRetardUseCase genererAvisRetardUseCase;
     private final GenererLettreRelanceUseCase genererLettreRelanceUseCase;
     private final DeclarationRepositoryPort declarationRepositoryPort;
@@ -31,6 +33,7 @@ public class DetectionRetardScheduler {
     public DetectionRetardScheduler(IdentifierRetardsUseCase identifierRetardsUseCase,
                                      EnvoyerNotificationUseCase envoyerNotificationUseCase,
                                      CalculerPenaliteUseCase calculerPenaliteUseCase,
+                                     CalculerAmendeDefautDepotUseCase calculerAmendeDefautDepotUseCase,
                                      GenererAvisRetardUseCase genererAvisRetardUseCase,
                                      GenererLettreRelanceUseCase genererLettreRelanceUseCase,
                                      DeclarationRepositoryPort declarationRepositoryPort,
@@ -38,6 +41,7 @@ public class DetectionRetardScheduler {
         this.identifierRetardsUseCase = identifierRetardsUseCase;
         this.envoyerNotificationUseCase = envoyerNotificationUseCase;
         this.calculerPenaliteUseCase = calculerPenaliteUseCase;
+        this.calculerAmendeDefautDepotUseCase = calculerAmendeDefautDepotUseCase;
         this.genererAvisRetardUseCase = genererAvisRetardUseCase;
         this.genererLettreRelanceUseCase = genererLettreRelanceUseCase;
         this.declarationRepositoryPort = declarationRepositoryPort;
@@ -75,8 +79,14 @@ public class DetectionRetardScheduler {
                 var declarationOpt = declarationRepositoryPort
                         .findByIdObligationFiscale(obligation.getIdObligationFiscale());
                 if (declarationOpt.isEmpty()) {
-                    logger.warn("[SCHEDULER] Obligation {} en retard sans declaration ; amende de defaut de depot a traiter explicitement",
-                            obligation.getIdObligationFiscale());
+                    try {
+                        calculerAmendeDefautDepotUseCase.execute(obligation.getIdObligationFiscale());
+                        logger.info("[SCHEDULER] Amende de defaut de depot traitee pour l'obligation {}",
+                                obligation.getIdObligationFiscale());
+                    } catch (Exception e) {
+                        logger.error("[SCHEDULER] Erreur amende defaut depot pour obligation {} : {}",
+                                obligation.getIdObligationFiscale(), e.getMessage());
+                    }
                     compteur++;
                     continue;
                 }

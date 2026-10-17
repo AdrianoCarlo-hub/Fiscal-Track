@@ -2,9 +2,12 @@ package mg.dgi.fiscaltrack.application.usecase.penalite;
 
 import mg.dgi.fiscaltrack.application.port.out.CompteCourantFiscalRepositoryPort;
 import mg.dgi.fiscaltrack.application.port.out.DeclarationRepositoryPort;
+import mg.dgi.fiscaltrack.application.port.out.HistoriquePenaliteRepositoryPort;
 import mg.dgi.fiscaltrack.application.usecase.admin.ParametreFiscalService;
+import mg.dgi.fiscaltrack.domain.enums.StatutRecouvrement;
 import mg.dgi.fiscaltrack.domain.model.CompteCourantFiscal;
 import mg.dgi.fiscaltrack.domain.model.Declaration;
+import mg.dgi.fiscaltrack.domain.model.HistoriquePenalite;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,13 +22,16 @@ public class CalculerPenaliteUseCase {
 
     private final CompteCourantFiscalRepositoryPort compteRepositoryPort;
     private final DeclarationRepositoryPort declarationRepositoryPort;
+    private final HistoriquePenaliteRepositoryPort historiquePenaliteRepositoryPort;
     private final ParametreFiscalService parametreFiscalService;
 
     public CalculerPenaliteUseCase(CompteCourantFiscalRepositoryPort compteRepositoryPort,
                                     DeclarationRepositoryPort declarationRepositoryPort,
+                                    HistoriquePenaliteRepositoryPort historiquePenaliteRepositoryPort,
                                     ParametreFiscalService parametreFiscalService) {
         this.compteRepositoryPort = compteRepositoryPort;
         this.declarationRepositoryPort = declarationRepositoryPort;
+        this.historiquePenaliteRepositoryPort = historiquePenaliteRepositoryPort;
         this.parametreFiscalService = parametreFiscalService;
     }
 
@@ -49,6 +55,11 @@ public class CalculerPenaliteUseCase {
             throw new IllegalArgumentException("La date limite reelle est obligatoire");
         }
 
+        // Un compte deja solde n'est jamais recalcule (point 2.1).
+        if (compte.getStatutRecouvrement() == StatutRecouvrement.SOLDE) {
+            return compte.getMontantPenalites();
+        }
+
         long moisRetard = calculerMoisRetard(dateLimiteReelle, LocalDate.now());
         if (moisRetard <= 0) {
             return compte.getMontantPenalites();
@@ -60,8 +71,9 @@ public class CalculerPenaliteUseCase {
                         "Declaration introuvable pour le compte : " + idCompte));
 
         BigDecimal tauxCumule = determinerTauxCumule(declaration.getChiffreAffairesDeclare(), moisRetard);
-        BigDecimal montantBase = compte.getMontantPrincipal() == null ? BigDecimal.ZERO : compte.getMontantPrincipal();
-        
+        // La penalite porte sur le principal restant du (point 2.1).
+        BigDecimal montantBase = principalRestantDu(compte);
+
         // Plancher de 10 000 Ar (CDI 20.01.53)
         BigDecimal plancher = parametreFiscalService.getValeur("PENALITE_PLANCHER");
         BigDecimal penalites = montantBase
@@ -69,11 +81,43 @@ public class CalculerPenaliteUseCase {
                 .max(plancher)
                 .setScale(2, RoundingMode.HALF_UP);
 
+        BigDecimal ancienMontant = compte.getMontantPenalites() == null
+                ? BigDecimal.ZERO
+                : compte.getMontantPenalites();
+
+        // Tracabilite : une ligne d'historique a chaque changement de montant
+        // (point 2.1).
+        if (penalites.compareTo(ancienMontant) != 0) {
+            historiquePenaliteRepositoryPort.save(HistoriquePenalite.builder()
+                    .idCompte(idCompte)
+                    .typeLigne(HistoriquePenalite.TYPE_PENALITE_RETARD)
+                    .dateCalcul(OffsetDateTime.now())
+                    .moisRetard((int) moisRetard)
+                    .taux(tauxCumule)
+                    .base(montantBase)
+                    .montant(penalites)
+                    .build());
+        }
+
         compte.setMontantPenalites(penalites);
         compte.setUpdatedAt(OffsetDateTime.now());
         compteRepositoryPort.save(compte);
 
         return penalites;
+    }
+
+    /**
+     * Principal restant du = principal non encore couvert par les paiements.
+     */
+    private BigDecimal principalRestantDu(CompteCourantFiscal compte) {
+        BigDecimal principal = compte.getMontantPrincipal() == null
+                ? BigDecimal.ZERO
+                : compte.getMontantPrincipal();
+        BigDecimal paye = compte.getMontantPaye() == null
+                ? BigDecimal.ZERO
+                : compte.getMontantPaye();
+        BigDecimal restant = principal.subtract(paye);
+        return restant.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : restant;
     }
 
     /**

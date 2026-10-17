@@ -152,6 +152,36 @@ INSERT INTO parametres_fiscaux (code, valeur, annee_debut, annee_fin, base_legal
 ('AMENDE_SEUIL_MOYENNE_ENTREPRISE', 200000000, 2026, null, 'CDI 20.01.52', 'DEFAUT_DEPOT', 'Seuil CA moyenne entreprise amende (>= 200M)'),
 ('AMENDE_SEUIL_PETITE_ENTREPRISE', 50000000, 2026, null, 'CDI 20.01.52', 'DEFAUT_DEPOT', 'Seuil CA petite entreprise amende (>= 50M)')
 ON CONFLICT (code) DO NOTHING;
+-- ============================================
+-- RECOUVREMENT
+-- Delais de recouvrement : valeurs NON confirmees (le CPF n'a pas pu etre
+-- relu). Elles sont externalisees (plus de constante en dur) et marquees
+-- "A CONFIRMER" pour ne jamais etre presentees comme des regles etablies.
+-- Voir QUESTIONS_ENCADREUR.md.
+-- ============================================
+INSERT INTO parametres_fiscaux (code, valeur, annee_debut, annee_fin, base_legale, secteur, description) VALUES
+('RECOUVREMENT_DELAI_TITRE_JOURS', 30, 2026, null, 'CPF (a confirmer)', 'RECOUVREMENT', 'Delai (jours) avant emission du titre de perception - a confirmer (CPF)'),
+('RECOUVREMENT_DELAI_ATD_JOURS', 15, 2026, null, 'CPF (a confirmer)', 'RECOUVREMENT', 'Delai (jours) avant lancement de l''ATD - a confirmer (CPF)')
+ON CONFLICT (code) DO NOTHING;
+-- ============================================
+-- MAJORATIONS (CDI 20.01.54 / 20.01.54.1 / 20.01.54.2)
+-- Les taux sont fournis par la note de reference (reparation.txt).
+-- Les CONDITIONS d'application (quel cas declenche quelle majoration
+-- TVA, notamment) restent A CONFIRMER : voir QUESTIONS_ENCADREUR.md.
+-- ============================================
+INSERT INTO parametres_fiscaux (code, valeur, annee_debut, annee_fin, base_legale, secteur, description) VALUES
+('MAJORATION_TAUX', 0.40, 2026, null, 'CDI 20.01.54', 'MAJORATION', 'Majoration de droit commun 40% (CDI 20.01.54)'),
+('MAJORATION_IRSA_NON_RETENU', 0.40, 2026, null, 'CDI 20.01.54.1', 'MAJORATION', 'IRSA 40% si impot non retenu'),
+('MAJORATION_IRSA_RETENU_NON_REVERSE', 0.80, 2026, null, 'CDI 20.01.54.1', 'MAJORATION', 'IRSA 80% si retenu mais non reverse'),
+('MAJORATION_IRSA_INTERMITTENT_TAUX', 0.10, 2026, null, 'CDI 20.01.54.1', 'MAJORATION', 'Retenues intermittentes 10%'),
+('MAJORATION_IRSA_INTERMITTENT_MIN', 20000, 2026, null, 'CDI 20.01.54.1', 'MAJORATION', 'Plancher retenues intermittentes 10%'),
+('MAJORATION_IRSA_INTERMITTENT_RETENU_TAUX', 0.40, 2026, null, 'CDI 20.01.54.1', 'MAJORATION', 'Retenues intermittentes retenues 40%'),
+('MAJORATION_IRSA_INTERMITTENT_RETENU_MIN', 100000, 2026, null, 'CDI 20.01.54.1', 'MAJORATION', 'Plancher retenues intermittentes 40%'),
+('MAJORATION_TVA_NIVEAU_1', 0.10, 2026, null, 'CDI 20.01.54.2', 'MAJORATION', 'Majoration TVA niveau 1 : 10%'),
+('MAJORATION_TVA_NIVEAU_2', 0.40, 2026, null, 'CDI 20.01.54.2', 'MAJORATION', 'Majoration TVA niveau 2 : 40%'),
+('MAJORATION_TVA_NIVEAU_3', 0.80, 2026, null, 'CDI 20.01.54.2', 'MAJORATION', 'Majoration TVA niveau 3 : 80%'),
+('MAJORATION_TVA_NIVEAU_4', 1.50, 2026, null, 'CDI 20.01.54.2', 'MAJORATION', 'Majoration TVA niveau 4 : 150%')
+ON CONFLICT (code) DO NOTHING;
 
 -- ============================================
 -- TYPES D'IMPOTS - catalogue de depart

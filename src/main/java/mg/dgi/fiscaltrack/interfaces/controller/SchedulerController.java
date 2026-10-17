@@ -55,6 +55,11 @@ public class SchedulerController {
                 return ResponseEntity.ok(Map.of(
                         "message", "Obligations annuelles generees",
                         "nombreGenerees", annuelles));
+            case "generer-acomptes":
+                int acomptes = genererObligationsScheduler.declencherAcomptes();
+                return ResponseEntity.ok(Map.of(
+                        "message", "Obligations d'acompte IR generees",
+                        "nombreGenerees", acomptes));
             default:
                 return ResponseEntity.badRequest().body(
                         Map.of("erreur", "Scheduler inconnu : " + nom));

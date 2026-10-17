@@ -7,6 +7,7 @@ import mg.dgi.fiscaltrack.application.usecase.calculfiscal.CalculerIrUseCase;
 import mg.dgi.fiscaltrack.application.usecase.calculfiscal.CalculerIrsaUseCase;
 import mg.dgi.fiscaltrack.application.usecase.calculfiscal.CalculerIsUseCase;
 import mg.dgi.fiscaltrack.application.usecase.calculfiscal.CalculerTvaUseCase;
+import mg.dgi.fiscaltrack.application.usecase.regime.DeterminerRegimeUseCase;
 import mg.dgi.fiscaltrack.domain.enums.CategorieActivite;
 import mg.dgi.fiscaltrack.domain.model.DeficitReportable;
 import mg.dgi.fiscaltrack.domain.model.ResultatCalculFiscal;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,19 +32,40 @@ import java.util.List;
 @PreAuthorize("hasAnyRole('AGENT_GESTION','RESPONSABLE','ADMIN')")
 public class CalculFiscalController {
 
+    private static final String AVERTISSEMENT_AUCUN = "Aucun avertissement de seuil.";
+
     private final CalculerIrUseCase calculerIrUseCase;
     private final CalculerIsUseCase calculerIsUseCase;
     private final CalculerIrsaUseCase calculerIrsaUseCase;
     private final CalculerTvaUseCase calculerTvaUseCase;
+    private final DeterminerRegimeUseCase determinerRegimeUseCase;
 
     public CalculFiscalController(CalculerIrUseCase calculerIrUseCase,
                                     CalculerIsUseCase calculerIsUseCase,
                                     CalculerIrsaUseCase calculerIrsaUseCase,
-                                    CalculerTvaUseCase calculerTvaUseCase) {
+                                    CalculerTvaUseCase calculerTvaUseCase,
+                                    DeterminerRegimeUseCase determinerRegimeUseCase) {
         this.calculerIrUseCase = calculerIrUseCase;
         this.calculerIsUseCase = calculerIsUseCase;
         this.calculerIrsaUseCase = calculerIrsaUseCase;
         this.calculerTvaUseCase = calculerTvaUseCase;
+        this.determinerRegimeUseCase = determinerRegimeUseCase;
+    }
+
+    /**
+     * Ajoute les avertissements de seuil de regime (seuil TVA confirme et
+     * parametres explicitement marques) au resultat de simulation. Le calcul
+     * de regime ne modifie jamais le montant : il informe seulement.
+     */
+    private void ajouterAvertissementsRegime(ResultatCalculFiscal resultat, BigDecimal chiffreAffaires) {
+        if (chiffreAffaires == null) {
+            return;
+        }
+        for (String avertissement : determinerRegimeUseCase.verifierAvertissements(chiffreAffaires)) {
+            if (!AVERTISSEMENT_AUCUN.equals(avertissement)) {
+                resultat.getAvertissements().add(avertissement);
+            }
+        }
     }
 
     /**
@@ -84,6 +107,8 @@ public class CalculFiscalController {
                 autorisationOuverture,
                 optionSante);
 
+        ajouterAvertissementsRegime(resultat, req.getCaHT());
+
         return ResponseEntity.ok(toResponse(resultat));
     }
 
@@ -97,6 +122,7 @@ public class CalculFiscalController {
                 req.getAchatsConformes(),
                 req.getChargesSalariales(),
                 req.getAcomptes());
+        ajouterAvertissementsRegime(resultat, req.getCaBrut());
         return ResponseEntity.ok(toResponse(resultat));
     }
 
@@ -124,6 +150,7 @@ public class CalculFiscalController {
                 exportation,
                 gazButane,
                 req.getChiffreAffaires());
+        ajouterAvertissementsRegime(resultat, req.getChiffreAffaires());
         return ResponseEntity.ok(toResponse(resultat));
     }
 
