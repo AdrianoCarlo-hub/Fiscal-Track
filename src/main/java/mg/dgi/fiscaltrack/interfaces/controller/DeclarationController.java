@@ -3,6 +3,7 @@ package mg.dgi.fiscaltrack.interfaces.controller;
 import jakarta.validation.Valid;
 import mg.dgi.fiscaltrack.application.usecase.declaration.ConsulterDeclarationsUseCase;
 import mg.dgi.fiscaltrack.application.usecase.declaration.DeposerDeclarationUseCase;
+import mg.dgi.fiscaltrack.application.usecase.declaration.PrevisualiserDeclarationUseCase;
 import mg.dgi.fiscaltrack.application.usecase.declaration.VerifierDeclarationUseCase;
 import mg.dgi.fiscaltrack.domain.model.Declaration;
 import mg.dgi.fiscaltrack.interfaces.dto.request.DeclarationRequest;
@@ -23,13 +24,16 @@ public class DeclarationController {
     private final DeposerDeclarationUseCase deposerUseCase;
     private final VerifierDeclarationUseCase verifierUseCase;
     private final ConsulterDeclarationsUseCase consulterUseCase;
+    private final PrevisualiserDeclarationUseCase previsualiserUseCase;
 
     public DeclarationController(DeposerDeclarationUseCase deposerUseCase,
                                   VerifierDeclarationUseCase verifierUseCase,
-                                  ConsulterDeclarationsUseCase consulterUseCase) {
+                                  ConsulterDeclarationsUseCase consulterUseCase,
+                                  PrevisualiserDeclarationUseCase previsualiserUseCase) {
         this.deposerUseCase = deposerUseCase;
         this.verifierUseCase = verifierUseCase;
         this.consulterUseCase = consulterUseCase;
+        this.previsualiserUseCase = previsualiserUseCase;
     }
 
     @GetMapping
@@ -58,6 +62,18 @@ public class DeclarationController {
     @PreAuthorize("hasAnyRole('AGENT_GESTION','RESPONSABLE','ADMIN')")
     public List<Map<String, Object>> parStatut(@PathVariable String statut) {
         return consulterUseCase.parStatutValidation(statut).stream().map(this::toMap).toList();
+    }
+
+    /**
+     * Previsualise l'impot calcule par le serveur pour une obligation donnee
+     * (BLOC 4.7 : le champ n'est plus libre, le serveur impose son montant).
+     * Ne persiste rien.
+     */
+    @PostMapping("/preview")
+    public Map<String, Object> previsualiser(@Valid @RequestBody DeclarationRequest request) {
+        return previsualiserUseCase.execute(
+                request.getIdObligationFiscale(),
+                request.getChiffreAffairesDeclare());
     }
 
     @PostMapping
