@@ -84,7 +84,12 @@ public class EnregistrerPaiementUseCase {
     }
 
     private StatutRecouvrement calculerStatut(CompteCourantFiscal compte, BigDecimal montantPaye) {
+        // Le total du inclut l'amende de defaut de depot (CDI 20.01.52),
+        // au meme titre que la colonne generee montant_total_du.
         BigDecimal totalDu = compte.getMontantPrincipal().add(compte.getMontantPenalites());
+        if (compte.getMontantAmende() != null) {
+            totalDu = totalDu.add(compte.getMontantAmende());
+        }
         if (montantPaye.compareTo(BigDecimal.ZERO) == 0) {
             return StatutRecouvrement.NON_SOLDE;
         }

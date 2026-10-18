@@ -54,7 +54,7 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/dashboard/**")
-                                .hasAnyRole("RESPONSABLE", "ADMIN")
+                                .hasAnyRole("RESPONSABLE", "AGENT_RECETTE", "ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter,

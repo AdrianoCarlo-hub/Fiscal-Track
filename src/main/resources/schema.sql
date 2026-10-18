@@ -251,3 +251,29 @@ CREATE TABLE IF NOT EXISTS historique_penalites (
 );
 
 CREATE INDEX IF NOT EXISTS idx_hist_penalites_compte ON historique_penalites(id_compte);
+
+-- ------------------------------------------------------------
+-- 14. Migrations idempotentes (mise a niveau d'une base existante)
+-- Sur une base PostgreSQL vierge creee ci-dessus, ces instructions
+-- sont sans effet (colonnes deja presentes avec la bonne definition).
+-- ------------------------------------------------------------
+
+-- BLOC 1 : date de cloture de l'exercice (calcul des echeances IR reelles)
+ALTER TABLE contribuables ADD COLUMN IF NOT EXISTS date_cloture DATE;
+
+-- BLOC 2 : amende de defaut de depot (CDI 20.01.52) integree au total du compte.
+-- On (re)definit les colonnes generees pour qu'elles incluent montant_amende,
+-- y compris pour une base creee avant l'ajout de cette colonne.
+ALTER TABLE comptes_courants_fiscaux
+    ADD COLUMN IF NOT EXISTS montant_amende NUMERIC(15, 2) NOT NULL DEFAULT 0;
+
+ALTER TABLE comptes_courants_fiscaux DROP COLUMN IF EXISTS montant_total_du;
+ALTER TABLE comptes_courants_fiscaux DROP COLUMN IF EXISTS reste_a_recouvrer;
+
+ALTER TABLE comptes_courants_fiscaux
+    ADD COLUMN montant_total_du NUMERIC(15, 2)
+        GENERATED ALWAYS AS (COALESCE(montant_principal, 0) + COALESCE(montant_penalites, 0) + COALESCE(montant_amende, 0)) STORED;
+
+ALTER TABLE comptes_courants_fiscaux
+    ADD COLUMN reste_a_recouvrer NUMERIC(15, 2)
+        GENERATED ALWAYS AS (COALESCE(montant_principal, 0) + COALESCE(montant_penalites, 0) + COALESCE(montant_amende, 0) - COALESCE(montant_paye, 0)) STORED;
