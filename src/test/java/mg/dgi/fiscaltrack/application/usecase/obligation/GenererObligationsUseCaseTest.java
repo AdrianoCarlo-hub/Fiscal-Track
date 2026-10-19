@@ -144,6 +144,19 @@ class GenererObligationsUseCaseTest {
     }
 
     @Test
+    @DisplayName("IR autre cloture (30 septembre) : 15e jour du 4e mois suivant -> 15 janvier N+1 (CPF I-11)")
+    void irAutreCloture30Septembre() {
+        Contribuable c = Contribuable.builder()
+                .nif("NIF0000001")
+                .dateCloture(LocalDate.of(2026, 9, 30))
+                .build();
+        when(contribuableRepositoryPort.findByNif("NIF0000001")).thenReturn(Optional.of(c));
+
+        ObligationFiscale o = useCase.execute("NIF0000001", "IR", "2026");
+        assertEquals(LocalDate.of(2027, 1, 15), o.getDateLimiteTheorique());
+    }
+
+    @Test
     @DisplayName("Les regles codees priment sur la configuration echeanceTheorique du TypeImpot")
     void reglesCodeesPrime() {
         when(typeImpotRepositoryPort.findByCodeImpot("IR")).thenReturn(Optional.of(
