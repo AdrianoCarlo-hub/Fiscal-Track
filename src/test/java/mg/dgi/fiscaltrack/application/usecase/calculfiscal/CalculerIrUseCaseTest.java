@@ -202,6 +202,57 @@ class CalculerIrUseCaseTest {
     }
 
     @Test
+    @DisplayName("IR carburant : benefice eleve, 20% du benefice l'emporte sur le minimum 2 pour mille")
+    void irCarburantBeneficeEleveVingtPourCentLEmporte() {
+        // CA 100M, charges 20M -> benefice 80M arrondi au millier = 80M
+        ResultatCalculFiscal r = useCase.execute(
+                new BigDecimal("100000000"),
+                new BigDecimal("20000000"),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                List.of(),
+                2026,
+                CategorieActivite.CARBURANT_DETAIL,
+                BigDecimal.ZERO,
+                12,
+                false,
+                false);
+
+        // IR theo = 80M x 20% = 16M ; minimum = 0,002 x 100M = 200 000
+        // IR du = MAX(16M ; 200 000) = 16M (20% l'emporte)
+        assertEquals(0, r.getTauxApplique().compareTo(new BigDecimal("0.20")));
+        assertEquals(0, r.getMontantBrut().compareTo(new BigDecimal("16000000")));
+        assertEquals(0, r.getMontantMinimum().compareTo(new BigDecimal("200000")));
+        assertEquals(0, r.getSolde().compareTo(new BigDecimal("16000000")));
+    }
+
+    @Test
+    @DisplayName("IR carburant : benefice faible, le minimum 2 pour mille du CA l'emporte")
+    void irCarburantBeneficeFaibleMinimumDeuxPourMilleLEmporte() {
+        // CA 100M, charges 99,5M -> benefice 500 000
+        ResultatCalculFiscal r = useCase.execute(
+                new BigDecimal("100000000"),
+                new BigDecimal("99500000"),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                List.of(),
+                2026,
+                CategorieActivite.CARBURANT_DETAIL,
+                BigDecimal.ZERO,
+                12,
+                false,
+                false);
+
+        // IR theo = 500 000 x 20% = 100 000 ; minimum = 0,002 x 100M = 200 000
+        // IR du = MAX(100 000 ; 200 000) = 200 000 (le 2 pour mille l'emporte,
+        // sans jamais etre applique comme taux sur le benefice)
+        assertEquals(0, r.getTauxApplique().compareTo(new BigDecimal("0.20")));
+        assertEquals(0, r.getMontantBrut().compareTo(new BigDecimal("100000")));
+        assertEquals(0, r.getMontantMinimum().compareTo(new BigDecimal("200000")));
+        assertEquals(0, r.getSolde().compareTo(new BigDecimal("200000")));
+    }
+
+    @Test
     @DisplayName("IR : le minimum de perception reste du en cas de deficit")
     void irMinimumEnCasDeDeficit() {
         ResultatCalculFiscal r = useCase.execute(
