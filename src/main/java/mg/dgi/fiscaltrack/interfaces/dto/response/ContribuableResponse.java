@@ -31,6 +31,7 @@ public class ContribuableResponse {
     private Boolean autorisationOuverture;
     private Boolean optionSante;
     private LocalDate dateCloture;
+    private String categorieActivite;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
 }

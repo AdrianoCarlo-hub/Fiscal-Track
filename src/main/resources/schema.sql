@@ -277,3 +277,13 @@ ALTER TABLE comptes_courants_fiscaux
 ALTER TABLE comptes_courants_fiscaux
     ADD COLUMN reste_a_recouvrer NUMERIC(15, 2)
         GENERATED ALWAYS AS (COALESCE(montant_principal, 0) + COALESCE(montant_penalites, 0) + COALESCE(montant_amende, 0) - COALESCE(montant_paye, 0)) STORED;
+
+-- BLOC formulaires-et-ux : categorie d'activite du dossier contribuable
+-- (pre-remplissage du formulaire d'declaration IR).
+ALTER TABLE contribuables ADD COLUMN IF NOT EXISTS categorie_activite VARCHAR(50);
+
+-- BLOC formulaires-et-ux : traçabilite des declarations
+--   donnees_saisies : copie JSON des champs saisis par le contribuable
+--   motif_rejet     : motif obligeatoire du rejet par l'agent, visible du contribuable
+ALTER TABLE declarations ADD COLUMN IF NOT EXISTS donnees_saisies TEXT;
+ALTER TABLE declarations ADD COLUMN IF NOT EXISTS motif_rejet TEXT;

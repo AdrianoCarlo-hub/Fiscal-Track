@@ -52,4 +52,10 @@ public class Declaration {
 
     /** Detail du calcul (texte lisible). */
     private String detailCalcul;
+
+    /** Donnees saisies par le contribuable (JSON) — tracabilite. */
+    private String donneesSaisies;
+
+    /** Motif du rejet par l'agent, visible du contribuable. */
+    private String motifRejet;
 }

@@ -2,6 +2,7 @@ package mg.dgi.fiscaltrack.interfaces.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
 import mg.dgi.fiscaltrack.domain.exception.AccesNonAutoriseException;
+import mg.dgi.fiscaltrack.domain.exception.AccesRefuseException;
 import mg.dgi.fiscaltrack.domain.exception.ContribuableIntrouvableException;
 import mg.dgi.fiscaltrack.domain.exception.DeclarationDejaExistanteException;
 import mg.dgi.fiscaltrack.domain.exception.ObligationIntrouvableException;
@@ -49,6 +50,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleAccesNonAutorise(
             AccesNonAutoriseException e, HttpServletRequest request) {
         return construire(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", e.getMessage(), request);
+    }
+
+    @ExceptionHandler(AccesRefuseException.class)
+    public ResponseEntity<ErrorResponse> handleAccesRefuse(
+            AccesRefuseException e, HttpServletRequest request) {
+        return construire(HttpStatus.FORBIDDEN, "FORBIDDEN", e.getMessage(), request);
     }
 
     @ExceptionHandler(AccessDeniedException.class)

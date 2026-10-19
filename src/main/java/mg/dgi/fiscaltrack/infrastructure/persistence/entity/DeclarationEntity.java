@@ -75,4 +75,10 @@ public class DeclarationEntity {
 
     @Column(name = "detail_calcul", columnDefinition = "TEXT")
     private String detailCalcul;
+
+    @Column(name = "donnees_saisies", columnDefinition = "TEXT")
+    private String donneesSaisies;
+
+    @Column(name = "motif_rejet", columnDefinition = "TEXT")
+    private String motifRejet;
 }

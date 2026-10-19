@@ -25,11 +25,22 @@ public class VerifierDeclarationUseCase {
         return d;
     }
 
-    public Declaration rejeter(Long idDeclaration) {
+    /**
+     * Rejet d'une declaration : le motif est obligatoire, il est enregistre
+     * sur la declaration et affiche au contribuable.
+     */
+    public Declaration rejeter(Long idDeclaration, String motif) {
+        if (motif == null || motif.isBlank()) {
+            throw new IllegalArgumentException("Le motif du rejet est obligatoire");
+        }
+
         Declaration d = changerStatut(idDeclaration, StatutValidation.REJETEE);
+        d.setMotifRejet(motif.trim());
+        Declaration sauvegardee = repositoryPort.save(d);
+
         enregistrerActionUseCase.execute("AGENT_GESTION", "REJET_DECLARATION",
-                "Declaration #" + idDeclaration + " rejetee");
-        return d;
+                "Declaration #" + idDeclaration + " rejetee : " + motif.trim());
+        return sauvegardee;
     }
 
     private Declaration changerStatut(Long idDeclaration, StatutValidation nouveauStatut) {

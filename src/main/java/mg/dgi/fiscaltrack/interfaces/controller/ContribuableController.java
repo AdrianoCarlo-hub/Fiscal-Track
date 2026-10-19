@@ -56,6 +56,7 @@ public class ContribuableController {
 
     @GetMapping("/{nif}")
     public ContribuableResponse parNif(@PathVariable String nif) {
+        UtilisateurConnecte.verifierPropriete(nif, "ce dossier contribuable");
         return toResponse(consulterUseCase.parNif(nif));
     }
 
@@ -111,6 +112,7 @@ public class ContribuableController {
                 .autorisationOuverture(r.getAutorisationOuverture())
                 .optionSante(r.getOptionSante())
                 .dateCloture(r.getDateCloture())
+                .categorieActivite(r.getCategorieActivite())
                 .build();
     }
 
@@ -133,6 +135,7 @@ public class ContribuableController {
                 .autorisationOuverture(c.getAutorisationOuverture())
                 .optionSante(c.getOptionSante())
                 .dateCloture(c.getDateCloture())
+                .categorieActivite(c.getCategorieActivite())
                 .createdAt(c.getCreatedAt())
                 .updatedAt(c.getUpdatedAt())
                 .build();

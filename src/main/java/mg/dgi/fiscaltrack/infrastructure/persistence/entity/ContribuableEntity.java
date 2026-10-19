@@ -77,6 +77,9 @@ public class ContribuableEntity {
     @Column(name = "date_cloture")
     private LocalDate dateCloture;
 
+    @Column(name = "categorie_activite", length = 50)
+    private String categorieActivite;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 

@@ -49,11 +49,14 @@ public class ObligationFiscaleController {
 
     @GetMapping("/{id}")
     public ObligationResponse parId(@PathVariable Long id) {
-        return toResponse(consulterUseCase.parId(id));
+        ObligationFiscale obligation = consulterUseCase.parId(id);
+        UtilisateurConnecte.verifierPropriete(obligation.getNif(), "cette obligation fiscale");
+        return toResponse(obligation);
     }
 
     @GetMapping("/contribuable/{nif}")
     public List<ObligationResponse> parContribuable(@PathVariable String nif) {
+        UtilisateurConnecte.verifierPropriete(nif, "cette liste d'obligations");
         return consulterUseCase.parContribuable(nif).stream().map(this::toResponse).toList();
     }
 

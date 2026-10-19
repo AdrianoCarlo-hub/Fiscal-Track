@@ -8,12 +8,14 @@ import mg.dgi.fiscaltrack.application.usecase.historique.EnregistrerActionUseCas
 import mg.dgi.fiscaltrack.domain.enums.StatutDeclaration;
 import mg.dgi.fiscaltrack.domain.enums.StatutRecouvrement;
 import mg.dgi.fiscaltrack.domain.enums.StatutValidation;
+import mg.dgi.fiscaltrack.domain.exception.AccesRefuseException;
 import mg.dgi.fiscaltrack.domain.exception.DeclarationDejaExistanteException;
 import mg.dgi.fiscaltrack.domain.exception.ObligationIntrouvableException;
 import mg.dgi.fiscaltrack.domain.model.CompteCourantFiscal;
 import mg.dgi.fiscaltrack.domain.model.Declaration;
 import mg.dgi.fiscaltrack.domain.model.ObligationFiscale;
 import mg.dgi.fiscaltrack.domain.model.ResultatCalculFiscal;
+import mg.dgi.fiscaltrack.domain.model.SaisieDeclaration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -38,19 +40,22 @@ public class DeposerDeclarationUseCase {
     private final AmendeDefautDepotRepositoryPort amendeDefautDepotRepositoryPort;
     private final EnregistrerActionUseCase enregistrerActionUseCase;
     private final CalculerImpotDeclarationUseCase calculerImpotDeclarationUseCase;
+    private final PreparerDonneesDeclarationUseCase preparerDonneesDeclarationUseCase;
 
     public DeposerDeclarationUseCase(DeclarationRepositoryPort declarationRepositoryPort,
                                       ObligationFiscaleRepositoryPort obligationRepositoryPort,
                                       CompteCourantFiscalRepositoryPort compteRepositoryPort,
                                       AmendeDefautDepotRepositoryPort amendeDefautDepotRepositoryPort,
                                       EnregistrerActionUseCase enregistrerActionUseCase,
-                                      CalculerImpotDeclarationUseCase calculerImpotDeclarationUseCase) {
+                                      CalculerImpotDeclarationUseCase calculerImpotDeclarationUseCase,
+                                      PreparerDonneesDeclarationUseCase preparerDonneesDeclarationUseCase) {
         this.declarationRepositoryPort = declarationRepositoryPort;
         this.obligationRepositoryPort = obligationRepositoryPort;
         this.compteRepositoryPort = compteRepositoryPort;
         this.amendeDefautDepotRepositoryPort = amendeDefautDepotRepositoryPort;
         this.enregistrerActionUseCase = enregistrerActionUseCase;
         this.calculerImpotDeclarationUseCase = calculerImpotDeclarationUseCase;
+        this.preparerDonneesDeclarationUseCase = preparerDonneesDeclarationUseCase;
     }
 
     @Transactional
@@ -58,13 +63,72 @@ public class DeposerDeclarationUseCase {
         ObligationFiscale obligation = obligationRepositoryPort.findById(idObligation)
                 .orElseThrow(() -> new ObligationIntrouvableException(idObligation));
 
-        if (declarationRepositoryPort.existsByIdObligationFiscale(idObligation)) {
-            throw new DeclarationDejaExistanteException(idObligation);
-        }
+        verifierDoublon(idObligation);
 
         if (chiffreAffaires == null || chiffreAffaires.compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("Le chiffre d'affaires declare ne peut pas etre negatif");
         }
+        if (impotCalcule == null || impotCalcule.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("L'impot principal calcule ne peut pas etre negatif");
+        }
+
+        Optional<ResultatCalculFiscal> recalcul = calculerImpotDeclarationUseCase.execute(
+                obligation.getCodeImpot(), chiffreAffaires, obligation.getNif());
+
+        return enregistrer(obligation, chiffreAffaires, impotCalcule, recalcul, null);
+    }
+
+    /**
+     * Depot d'une declaration a partir du formulaire adapte a l'impot.
+     * Le serveur recalcule avec les parametres du formulaire ; si le montant
+     * affiche a l'ecran differe du recalcul, c'est le montant serveur qui est
+     * retenu et l'ecart est signale dans le detail du calcul.
+     *
+     * @param donneesSaisiesJson copie JSON des champs saisis (tracabilite)
+     * @param nifAppelant        NIF du contribuable connecte (null = agent)
+     */
+    @Transactional
+    public Declaration deposer(SaisieDeclaration saisie,
+                               String donneesSaisiesJson,
+                               String nifAppelant) {
+        ObligationFiscale obligation = obligationRepositoryPort.findById(saisie.getIdObligationFiscale())
+                .orElseThrow(() -> new ObligationIntrouvableException(saisie.getIdObligationFiscale()));
+
+        verifierPropriete(obligation, nifAppelant);
+        verifierDoublon(obligation.getIdObligationFiscale());
+
+        PreparerDonneesDeclarationUseCase.DonneesDeclaration donnees =
+                preparerDonneesDeclarationUseCase.execute(
+                        saisie, obligation.getCodeImpot(), obligation.getNif());
+
+        Optional<ResultatCalculFiscal> recalcul = calculerImpotDeclarationUseCase.executeAvecParametres(
+                obligation.getCodeImpot(), donnees.params(), obligation.getNif());
+
+        return enregistrer(obligation, donnees.chiffreAffaires(),
+                saisie.getImpotPrincipalCalcule(), recalcul, donneesSaisiesJson);
+    }
+
+    private void verifierDoublon(Long idObligation) {
+        if (declarationRepositoryPort.existsByIdObligationFiscale(idObligation)) {
+            throw new DeclarationDejaExistanteException(idObligation);
+        }
+    }
+
+    /** Un contribuable ne peut deposer que pour son propre NIF. */
+    private void verifierPropriete(ObligationFiscale obligation, String nifAppelant) {
+        if (nifAppelant != null && !nifAppelant.equals(obligation.getNif())) {
+            throw new AccesRefuseException(
+                    "Acces refuse : cette obligation fiscale appartient a un autre contribuable.");
+        }
+    }
+
+    private Declaration enregistrer(ObligationFiscale obligation,
+                                    BigDecimal chiffreAffaires,
+                                    BigDecimal impotCalcule,
+                                    Optional<ResultatCalculFiscal> recalcul,
+                                    String donneesSaisiesJson) {
+        Long idObligation = obligation.getIdObligationFiscale();
+
         if (impotCalcule == null || impotCalcule.compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("L'impot principal calcule ne peut pas etre negatif");
         }
@@ -78,8 +142,6 @@ public class DeposerDeclarationUseCase {
         BigDecimal montantBrut = null;
         BigDecimal montantMinimum = null;
 
-        Optional<ResultatCalculFiscal> recalcul = calculerImpotDeclarationUseCase.execute(
-                obligation.getCodeImpot(), chiffreAffaires, obligation.getNif());
         if (recalcul.isPresent()) {
             ResultatCalculFiscal resultat = recalcul.get();
             BigDecimal montantServeur = resultat.getSolde() == null
@@ -102,6 +164,14 @@ public class DeposerDeclarationUseCase {
             tauxApplique = resultat.getTauxApplique();
             montantBrut = resultat.getMontantBrut();
             montantMinimum = resultat.getMontantMinimum();
+
+            if (resultat.getEtapesCalcul() != null && !resultat.getEtapesCalcul().isEmpty()) {
+                detailCalcul = detailCalcul + System.lineSeparator()
+                        + String.join(System.lineSeparator(), resultat.getEtapesCalcul());
+            }
+            if (resultat.getExplication() != null && !resultat.getExplication().isBlank()) {
+                detailCalcul = detailCalcul + System.lineSeparator() + resultat.getExplication();
+            }
         }
 
         Declaration declaration = Declaration.builder()
@@ -115,6 +185,7 @@ public class DeposerDeclarationUseCase {
                 .montantBrut(montantBrut)
                 .montantMinimum(montantMinimum)
                 .detailCalcul(detailCalcul)
+                .donneesSaisies(donneesSaisiesJson)
                 .build();
         Declaration declarationSauvee = declarationRepositoryPort.save(declaration);
 

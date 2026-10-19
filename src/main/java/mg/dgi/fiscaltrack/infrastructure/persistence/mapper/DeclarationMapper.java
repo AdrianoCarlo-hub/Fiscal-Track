@@ -31,6 +31,8 @@ public class DeclarationMapper {
                 .creditFiscal(e.getCreditFiscal())
                 .categorieActivite(parseCategorieActivite(e.getCategorieActivite()))
                 .detailCalcul(e.getDetailCalcul())
+                .donneesSaisies(e.getDonneesSaisies())
+                .motifRejet(e.getMotifRejet())
                 .build();
     }
 
@@ -56,6 +58,8 @@ public class DeclarationMapper {
                 .creditFiscal(d.getCreditFiscal())
                 .categorieActivite(d.getCategorieActivite() == null ? null : d.getCategorieActivite().name())
                 .detailCalcul(d.getDetailCalcul())
+                .donneesSaisies(d.getDonneesSaisies())
+                .motifRejet(d.getMotifRejet())
                 .build();
     }
 
