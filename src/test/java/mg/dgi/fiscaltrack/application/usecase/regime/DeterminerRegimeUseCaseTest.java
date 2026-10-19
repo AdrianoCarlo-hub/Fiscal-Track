@@ -1,8 +1,10 @@
 package mg.dgi.fiscaltrack.application.usecase.regime;
 
 import mg.dgi.fiscaltrack.application.usecase.admin.ParametreFiscalService;
+import mg.dgi.fiscaltrack.domain.enums.RegimeImposition;
 import mg.dgi.fiscaltrack.domain.model.ParametreFiscal;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -35,8 +37,60 @@ class DeterminerRegimeUseCaseTest {
         var avertissements = useCase.verifierAvertissements(new BigDecimal("400000000"));
 
         assertEquals(1, avertissements.size());
+        assertTrue(avertissements.get(0).contains("régime du réel applicable (CDI 01.01.13)"));
         assertTrue(avertissements.get(0).contains("TVA confirmé"));
         assertTrue(useCase.estAssujettiTva(new BigDecimal("400000000")));
+    }
+
+    @Test
+    void regimeSynthétiqueAuDelaDe200MProduitUnAvertissementI19() {
+        var avertissements = useCase.verifierAvertissements(
+                new BigDecimal("250000000"), RegimeImposition.SYNTHETIQUE);
+
+        assertEquals(1, avertissements.size());
+        assertTrue(avertissements.get(0).contains("régime synthétique et CA > 200000000"));
+        assertTrue(avertissements.get(0).contains("CPF I-19"));
+        assertTrue(avertissements.get(0).contains("Aucun changement automatique de régime"));
+    }
+
+    @Test
+    void regimeSynthétiqueAuSeuilExact200MPasDAvertissementI19() {
+        var avertissements = useCase.verifierAvertissements(
+                new BigDecimal("200000000"), RegimeImposition.SYNTHETIQUE);
+
+        assertEquals(1, avertissements.size());
+        assertEquals("Aucun avertissement de seuil.", avertissements.get(0));
+    }
+
+    @Test
+    void regimeReelAuDelaDe200MPasDAvertissementI19() {
+        var avertissements = useCase.verifierAvertissements(
+                new BigDecimal("250000000"), RegimeImposition.REEL);
+
+        assertEquals(1, avertissements.size());
+        assertEquals("Aucun avertissement de seuil.", avertissements.get(0));
+    }
+
+    @Test
+    void seulCaEstDemandeAucunRegimeNestModifie() {
+        // La methode ne retourne que des avertissements (List<String>) :
+        // aucun regime n'est en retour, aucun changement automatique possible.
+        var avertissements = useCase.verifierAvertissements(
+                new BigDecimal("500000000"), RegimeImposition.SYNTHETIQUE);
+
+        assertEquals(2, avertissements.size());
+        assertTrue(avertissements.get(0).contains("régime du réel applicable"));
+        assertTrue(avertissements.get(1).contains("CPF I-19"));
+    }
+
+    @Test
+    void seuilIrvingtMillionsPasCode() {
+        // Seuil IR 20 M : ni code ni simule (sources en conflit)
+        var avertissements = useCase.verifierAvertissements(
+                new BigDecimal("25000000"), RegimeImposition.SYNTHETIQUE);
+
+        assertEquals(1, avertissements.size());
+        assertEquals("Aucun avertissement de seuil.", avertissements.get(0));
     }
 
     @Test
