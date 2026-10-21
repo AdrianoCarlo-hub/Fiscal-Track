@@ -486,25 +486,70 @@ public class DeposerDeclarationUseCase {
 
         }
 
-        BigDecimal solde = recalcul.map(ResultatCalculFiscal::getSolde)
-
-                .filter(java.util.Objects::nonNull)
-
-                .orElse(BigDecimal.ZERO);
-
-        BigDecimal disponible = solde.add(creditAnterieur);
-
-        if (disponible.signum() <= 0) {
-
-            return BigDecimal.ZERO;
-
+        BigDecimal impotAvantAcomptes = recalcul
+                .map(resultat -> impotDuAvantAcomptes(resultat, detailAcomptes))
+                .orElse(null);
+        if (impotAvantAcomptes == null) {
+            BigDecimal solde = recalcul.map(ResultatCalculFiscal::getSolde)
+                    .filter(java.util.Objects::nonNull)
+                    .orElse(BigDecimal.ZERO);
+            return solde.add(creditAnterieur).min(creditAnterieur);
         }
-
+        BigDecimal dejaDeduitHorsCredit = valeurOuZero(detailAcomptes.get("acomptesPayes"))
+                .add(valeurOuZero(detailAcomptes.get("autresAcomptes")));
+        BigDecimal disponible = impotAvantAcomptes.subtract(dejaDeduitHorsCredit);
+        if (disponible.signum() <= 0) {
+            return BigDecimal.ZERO;
+        }
         return disponible.min(creditAnterieur);
 
     }
 
 
+
+    /**
+     * Impot du avant deduction des acomptes et du credit, reconstruit a partir
+     * du resultat du moteur (le solde seul ne permet pas de savoir quelle part
+     * du credit anterieur a ete reellement consommee).
+     */
+    private BigDecimal impotDuAvantAcomptes(ResultatCalculFiscal resultat,
+                                            Map<String, Object> detailAcomptes) {
+        if (resultat == null) {
+            return null;
+        }
+        Object code = detailAcomptes.get("codeImpot");
+        boolean is = code != null && "IS".equalsIgnoreCase(code.toString());
+        BigDecimal brut = resultat.getMontantBrut();
+        BigDecimal minimum = resultat.getMontantMinimum();
+        if (brut == null && minimum == null) {
+            return null;
+        }
+        BigDecimal impot = valeurOuZero(brut);
+        if (is) {
+            impot = impot.subtract(valeurOuZero(resultat.getReductions()));
+        }
+        if (impot.signum() < 0) {
+            impot = BigDecimal.ZERO;
+        }
+        if (minimum != null && minimum.compareTo(impot) > 0) {
+            impot = minimum;
+        }
+        return impot;
+    }
+
+    private static BigDecimal valeurOuZero(Object valeur) {
+        if (valeur instanceof BigDecimal montant) {
+            return montant;
+        }
+        if (valeur == null) {
+            return BigDecimal.ZERO;
+        }
+        try {
+            return new BigDecimal(valeur.toString());
+        } catch (NumberFormatException e) {
+            return BigDecimal.ZERO;
+        }
+    }
 
     private String resumerAcomptes(Map<String, Object> detail) {
 
