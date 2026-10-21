@@ -113,6 +113,9 @@ public class ContribuableController {
                 .optionSante(r.getOptionSante())
                 .dateCloture(r.getDateCloture())
                 .categorieActivite(r.getCategorieActivite())
+                .canalPrefere(parseEnum(mg.dgi.fiscaltrack.domain.enums.CanalEnvoi.class, r.getCanalPrefere()))
+                .accepteEmail(r.getAccepteEmail())
+                .accepteSms(r.getAccepteSms())
                 .build();
     }
 
@@ -136,6 +139,9 @@ public class ContribuableController {
                 .optionSante(c.getOptionSante())
                 .dateCloture(c.getDateCloture())
                 .categorieActivite(c.getCategorieActivite())
+                .canalPrefere(enumName(c.getCanalPrefere()))
+                .accepteEmail(c.getAccepteEmail())
+                .accepteSms(c.getAccepteSms())
                 .createdAt(c.getCreatedAt())
                 .updatedAt(c.getUpdatedAt())
                 .build();

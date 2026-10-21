@@ -3,11 +3,18 @@ package mg.dgi.fiscaltrack.application.usecase.penalite;
 import mg.dgi.fiscaltrack.application.port.out.CompteCourantFiscalRepositoryPort;
 import mg.dgi.fiscaltrack.application.port.out.DeclarationRepositoryPort;
 import mg.dgi.fiscaltrack.application.port.out.HistoriquePenaliteRepositoryPort;
+import mg.dgi.fiscaltrack.application.port.out.ObligationFiscaleRepositoryPort;
 import mg.dgi.fiscaltrack.application.usecase.admin.ParametreFiscalService;
+import mg.dgi.fiscaltrack.application.usecase.notification.ContexteNotification;
+import mg.dgi.fiscaltrack.application.usecase.notification.ContexteObligationService;
+import mg.dgi.fiscaltrack.application.usecase.notification.NotifierEvenementUseCase;
 import mg.dgi.fiscaltrack.domain.enums.StatutRecouvrement;
+import mg.dgi.fiscaltrack.domain.enums.TypeRelance;
 import mg.dgi.fiscaltrack.domain.model.CompteCourantFiscal;
 import mg.dgi.fiscaltrack.domain.model.Declaration;
 import mg.dgi.fiscaltrack.domain.model.HistoriquePenalite;
+import mg.dgi.fiscaltrack.domain.model.ObligationFiscale;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +23,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.Optional;
 
 @Service
 public class CalculerPenaliteUseCase {
@@ -25,6 +33,10 @@ public class CalculerPenaliteUseCase {
     private final HistoriquePenaliteRepositoryPort historiquePenaliteRepositoryPort;
     private final ParametreFiscalService parametreFiscalService;
 
+    private ObligationFiscaleRepositoryPort obligationRepositoryPort;
+    private ContexteObligationService contexteObligationService;
+    private NotifierEvenementUseCase notifierEvenementUseCase;
+
     public CalculerPenaliteUseCase(CompteCourantFiscalRepositoryPort compteRepositoryPort,
                                     DeclarationRepositoryPort declarationRepositoryPort,
                                     HistoriquePenaliteRepositoryPort historiquePenaliteRepositoryPort,
@@ -33,6 +45,21 @@ public class CalculerPenaliteUseCase {
         this.declarationRepositoryPort = declarationRepositoryPort;
         this.historiquePenaliteRepositoryPort = historiquePenaliteRepositoryPort;
         this.parametreFiscalService = parametreFiscalService;
+    }
+
+    @Autowired(required = false)
+    public void setObligationRepositoryPort(ObligationFiscaleRepositoryPort obligationRepositoryPort) {
+        this.obligationRepositoryPort = obligationRepositoryPort;
+    }
+
+    @Autowired(required = false)
+    public void setContexteObligationService(ContexteObligationService contexteObligationService) {
+        this.contexteObligationService = contexteObligationService;
+    }
+
+    @Autowired(required = false)
+    public void setNotifierEvenementUseCase(NotifierEvenementUseCase notifierEvenementUseCase) {
+        this.notifierEvenementUseCase = notifierEvenementUseCase;
     }
 
     /**

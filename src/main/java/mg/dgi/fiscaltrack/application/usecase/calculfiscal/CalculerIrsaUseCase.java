@@ -19,8 +19,9 @@ import java.util.List;
  *   - Tranche 3 : 400 001 - 500 000 Ar, taux 10%
  *   - Tranche 4 : 500 001 - 600 000 Ar, taux 15%
  *   - Tranche 5 : > 600 000 Ar, taux 20%
- * Minimum d'imposition : 3 000 Ar.
- * Reduction pour charge de famille : 2 000 Ar par personne.
+ * Minimum d'imposition : 3 000 Ar (plancher legal absolu, jamais franchi).
+ * Reduction pour charge de famille : 2 000 Ar par personne, uniquement si la
+ * base imposable arrondie est strictement superieure a 350 000 Ar (01.03.19).
  * Base = salaire brut - cotisations + avantages en nature.
  * Arrondi a la centaine inferieure (01.03.16 et 01.03.19).
  */
@@ -82,26 +83,34 @@ public class CalculerIrsaUseCase {
             impot = impot.add(reste.multiply(taux[taux.length - 1]));
         }
 
-        // Minimum (CDI 01.03.16)
+        // Minimum legal de perception (CDI 01.03.16, 01.03.19)
         BigDecimal minimum = parametreFiscalService.getValeur("IRSA_MINIMUM");
 
-        // Reduction charge de famille (CDI 01.03.19)
-        BigDecimal reductionParPersonne = parametreFiscalService.getValeur("IRSA_REDUCTION_PAR_PERSONNE");
-        BigDecimal reduction = reductionParPersonne.multiply(BigDecimal.valueOf(nombrePersonnesCharge));
+        // IRSA brut : bareme, verrouille au plancher legal
+        BigDecimal irsaBrut = impot.max(minimum);
 
-        // IRSA du
-        // NOTE : l'ordre relatif entre le plancher (minimum de perception) et la
-        // reduction pour charges n'est pas verifiable (CDI indisponible). Comportement
-        // retenu : plancher applique d'abord, puis reduction (peut descendre sous le
-        // plancher). Question ouverte : QUESTIONS_ENCADREUR.md.
-        BigDecimal irsaDu = impot.max(minimum).subtract(reduction);
-        if (irsaDu.signum() < 0) irsaDu = BigDecimal.ZERO;
+        // Reduction charge de famille (CDI 01.03.19) : uniquement si la base
+        // imposable arrondie est STRICTEMENT superieure a 350 000 Ar.
+        BigDecimal seuilReduction = parametreFiscalService.getValeur("IRSA_SEUIL_1");
+        BigDecimal reductionParPersonne = parametreFiscalService.getValeur("IRSA_REDUCTION_PAR_PERSONNE");
+        BigDecimal reduction = BigDecimal.ZERO;
+        if (base.compareTo(seuilReduction) > 0 && nombrePersonnesCharge > 0) {
+            reduction = reductionParPersonne.multiply(BigDecimal.valueOf(nombrePersonnesCharge));
+        }
+
+        // IRSA final : la reduction ne peut jamais ramener le montant sous le
+        // plancher legal de 3 000 Ar (CDI 01.03.16 & 01.03.19).
+        BigDecimal irsaDu = irsaBrut.subtract(reduction).max(minimum);
 
         List<String> etapes = new ArrayList<>();
         etapes.add("Base imposable mensuelle : " + base + " Ar");
         etapes.add("Impot selon bareme : " + impot.setScale(2, RoundingMode.HALF_UP) + " Ar");
         etapes.add("Minimum IRSA : " + minimum + " Ar");
-        etapes.add("Reduction charges (" + nombrePersonnesCharge + " pers.) : -" + reduction + " Ar");
+        if (reduction.signum() > 0) {
+            etapes.add("Reduction charges (" + nombrePersonnesCharge + " pers.) : -" + reduction + " Ar");
+        } else {
+            etapes.add("Reduction charges : 0 Ar (base <= 350 000 Ar ou aucune personne a charge)");
+        }
         etapes.add("IRSA a payer : " + irsaDu + " Ar");
 
         return ResultatCalculFiscal.builder()
@@ -111,7 +120,7 @@ public class CalculerIrsaUseCase {
                 .montantMinimum(minimum)
                 .reductions(reduction)
                 .solde(irsaDu)
-                .explication("IRSA = MAX(bareme ; 3 000) - (2 000 x personnes a charge)")
+                .explication("IRSA = MAX(MAX(bareme ; 3 000) - (2 000 x personnes a charge si base > 350 000) ; 3 000)")
                 .etapesCalcul(etapes)
                 .build();
     }

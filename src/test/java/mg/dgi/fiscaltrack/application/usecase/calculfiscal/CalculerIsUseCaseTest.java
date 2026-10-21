@@ -135,6 +135,39 @@ class CalculerIsUseCaseTest {
     }
 
     @Test
+    @DisplayName("IS minimum categorie : alias frontend COMMERCE = 100 000 (ticket C2.4)")
+    void isMinimumCategorieAliasCommerce() {
+        ResultatCalculFiscal r = useCase.execute(
+                new BigDecimal("1000000"),
+                "COMMERCE",
+                false,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO);
+
+        // CA = 1M, IS theorique = 50 000, plancher 3% = 30 000,
+        // minimum categorie COMMERCANT = 100 000 -> IS du = 100 000
+        assertEquals(0, r.getSolde().compareTo(new BigDecimal("100000")));
+        assertEquals(0, r.getMontantMinimum().compareTo(new BigDecimal("100000")));
+    }
+
+    @Test
+    @DisplayName("IS minimum categorie : alias frontend ARTISANAL = 50 000")
+    void isMinimumCategorieAliasArtisanal() {
+        ResultatCalculFiscal r = useCase.execute(
+                new BigDecimal("500000"),
+                "ARTISANAL",
+                false,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO);
+
+        // CA = 500 000, IS theorique = 25 000, plancher 3% = 15 000,
+        // minimum categorie ARTISAN = 50 000 -> IS du = 50 000
+        assertEquals(0, r.getSolde().compareTo(new BigDecimal("50000")));
+    }
+
+    @Test
     @DisplayName("IS minimum categorie : AGRICOLE 16 000, plancher 3% retenu")
     void isMinimumCategorieAgricole() {
         ResultatCalculFiscal r = useCase.execute(

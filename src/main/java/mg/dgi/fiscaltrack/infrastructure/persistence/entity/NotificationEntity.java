@@ -46,6 +46,9 @@ public class NotificationEntity {
     @Column(name = "message_contenu", nullable = false, columnDefinition = "TEXT")
     private String messageContenu;
 
+    @Column(name = "message_sms", columnDefinition = "TEXT")
+    private String messageSms;
+
     @Column(name = "date_envoi_prevue", nullable = false)
     private OffsetDateTime dateEnvoiPrevue;
 
@@ -57,6 +60,18 @@ public class NotificationEntity {
 
     @Column(name = "statut_envoi", nullable = false)
     private String statutEnvoi;
+
+    @Column(name = "nb_tentatives", nullable = false)
+    private Integer nbTentatives;
+
+    @Column(name = "derniere_tentative")
+    private OffsetDateTime derniereTentative;
+
+    @Column(name = "erreur_envoi", columnDefinition = "TEXT")
+    private String erreurEnvoi;
+
+    @Column(name = "lu", nullable = false)
+    private Boolean lu;
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;

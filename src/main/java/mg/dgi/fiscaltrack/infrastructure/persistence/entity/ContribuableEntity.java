@@ -80,6 +80,15 @@ public class ContribuableEntity {
     @Column(name = "categorie_activite", length = 50)
     private String categorieActivite;
 
+    @Column(name = "canal_prefere", length = 255)
+    private String canalPrefere;
+
+    @Column(name = "accepte_email")
+    private Boolean accepteEmail;
+
+    @Column(name = "accepte_sms")
+    private Boolean accepteSms;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 

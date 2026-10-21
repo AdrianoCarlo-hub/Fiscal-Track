@@ -35,6 +35,9 @@ public class ContribuableMapper {
                 .optionSante(e.getOptionSante())
                 .dateCloture(e.getDateCloture())
                 .categorieActivite(e.getCategorieActivite())
+                .canalPrefere(parseEnum(mg.dgi.fiscaltrack.domain.enums.CanalEnvoi.class, e.getCanalPrefere()))
+                .accepteEmail(e.getAccepteEmail())
+                .accepteSms(e.getAccepteSms())
                 .createdAt(e.getCreatedAt())
                 .updatedAt(e.getUpdatedAt())
                 .build();
@@ -64,6 +67,9 @@ public class ContribuableMapper {
                 .optionSante(d.getOptionSante())
                 .dateCloture(d.getDateCloture())
                 .categorieActivite(d.getCategorieActivite())
+                .canalPrefere(enumToString(d.getCanalPrefere()))
+                .accepteEmail(d.getAccepteEmail())
+                .accepteSms(d.getAccepteSms())
                 .createdAt(d.getCreatedAt())
                 .updatedAt(d.getUpdatedAt())
                 .build();

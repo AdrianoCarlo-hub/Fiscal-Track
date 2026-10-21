@@ -48,7 +48,8 @@ public class DetectionRetardScheduler {
         this.compteCourantFiscalRepositoryPort = compteCourantFiscalRepositoryPort;
     }
 
-    @Scheduled(cron = "0 0 9 * * *")
+    /** Tous les jours a 9h00 (heure de Madagascar). */
+    @Scheduled(cron = "0 0 9 * * *", zone = "Indian/Antananarivo")
     public void executerDetectionRetards() {
         logger.info("[SCHEDULER] Debut de la detection des retards");
 

@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import mg.dgi.fiscaltrack.domain.enums.CanalEnvoi;
 import mg.dgi.fiscaltrack.domain.enums.FormeJuridique;
 import mg.dgi.fiscaltrack.domain.enums.ObligationComptable;
 import mg.dgi.fiscaltrack.domain.enums.RegimeImposition;
@@ -39,6 +40,12 @@ public class Contribuable {
     private Boolean optionSante;
     private LocalDate dateCloture;
     private String categorieActivite;
+    /** Canal de contact prefere du contribuable (null = tous les canaux disponibles). */
+    private CanalEnvoi canalPrefere;
+    /** Le contribuable accepte les e-mails (les avis legaux restent sur le portail). */
+    private Boolean accepteEmail;
+    /** Le contribuable accepte les SMS (les avis legaux restent sur le portail). */
+    private Boolean accepteSms;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
 }

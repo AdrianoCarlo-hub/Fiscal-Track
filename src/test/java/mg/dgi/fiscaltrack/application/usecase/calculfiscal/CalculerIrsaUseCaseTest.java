@@ -116,13 +116,53 @@ class CalculerIrsaUseCaseTest {
     }
 
     @Test
-    @DisplayName("IRSA reduction passant sous le plancher (comportement a confirmer)")
-    void irsaReductionSousPlancher() {
+    @DisplayName("IRSA : la reduction est refusee si la base est <= 350 000 Ar")
+    void irsaReductionRefuseeBaseEgaleSeuil() {
         ResultatCalculFiscal r = useCase.execute(
-                new BigDecimal("100000"), BigDecimal.ZERO,
+                new BigDecimal("350000"), BigDecimal.ZERO,
                 BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, 2);
 
-        // Bareme = 0 -> plancher 3 000 ; reduction 4 000 -> 0 (cf. QUESTIONS_ENCADREUR.md)
-        assertEquals(0, r.getSolde().compareTo(BigDecimal.ZERO));
+        // Base = 350 000 (non strictement superieure) -> aucune reduction ;
+        // bareme = 0 -> plancher legal 3 000 Ar
+        assertEquals(0, r.getReductions().compareTo(BigDecimal.ZERO));
+        assertEquals(0, r.getSolde().compareTo(new BigDecimal("3000")));
+    }
+
+    @Test
+    @DisplayName("IRSA : la reduction s'applique des que la base depasse 350 000 Ar")
+    void irsaReductionAppliqueeAuDelaSeuil() {
+        ResultatCalculFiscal r = useCase.execute(
+                new BigDecimal("351000"), BigDecimal.ZERO,
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, 1);
+
+        // Bareme = 1 000 x 5% = 50 -> plancher 3 000
+        // Reduction = 2 000 (base > 350 000) -> 1 000, verrouille a 3 000
+        assertEquals(0, r.getReductions().compareTo(new BigDecimal("2000")));
+        assertEquals(0, r.getSolde().compareTo(new BigDecimal("3000")));
+    }
+
+    @Test
+    @DisplayName("IRSA : la reduction ne peut jamais passer sous le plancher de 3 000 Ar")
+    void irsaPlancherVerrouilleApresReduction() {
+        ResultatCalculFiscal r = useCase.execute(
+                new BigDecimal("500000"), BigDecimal.ZERO,
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, 10);
+
+        // Bareme = 12 500 ; reduction = 10 x 2 000 = 20 000 -> irsa = -7 500
+        // Verrouillage strict : IRSA du = 3 000 Ar
+        assertEquals(0, r.getReductions().compareTo(new BigDecimal("20000")));
+        assertEquals(0, r.getSolde().compareTo(new BigDecimal("3000")));
+    }
+
+    @Test
+    @DisplayName("IRSA : arrondi de la base a la centaine inferieure")
+    void irsaArrondiCentaineInferieure() {
+        ResultatCalculFiscal r = useCase.execute(
+                new BigDecimal("450099"), BigDecimal.ZERO,
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, 0);
+
+        // Base arrondie = 450 000 -> bareme 7 500 Ar
+        assertEquals(0, r.getBaseImposable().compareTo(new BigDecimal("450000")));
+        assertEquals(0, r.getSolde().compareTo(new BigDecimal("7500")));
     }
 }

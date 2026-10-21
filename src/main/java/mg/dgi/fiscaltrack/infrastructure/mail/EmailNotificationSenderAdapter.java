@@ -2,9 +2,9 @@ package mg.dgi.fiscaltrack.infrastructure.mail;
 
 import mg.dgi.fiscaltrack.application.port.out.ContribuableRepositoryPort;
 import mg.dgi.fiscaltrack.application.port.out.NotificationSenderPort;
-import mg.dgi.fiscaltrack.domain.enums.CanalEnvoi;
 import mg.dgi.fiscaltrack.domain.model.Contribuable;
 import mg.dgi.fiscaltrack.domain.model.Notification;
+import mg.dgi.fiscaltrack.domain.util.Masquage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -16,16 +16,15 @@ import org.springframework.stereotype.Component;
 import java.util.Optional;
 
 /**
- * Envoi des notifications.
+ * Envoi reel des notifications par e-mail (Spring Mail / SMTP).
  *
- * - Canal EMAIL : envoi SMTP reel via JavaMailSender quand la configuration
- *   mail (spring.mail.host) est renseignee ; sinon repli sur le log.
- *   L'adresse du destinataire est resolue depuis le contribuable (NIF) ;
- *   si elle est absente, repli sur le log.
- * - Canal PORTAIL : notification deja consultable dans le portail du
- *   contribuable (stockee en base), aucun envoi externe.
- * - Canal SMS : HORS PERIMETRE (aucun fournisseur configure) ; la
- *   notification est journalisee et non envoyee.
+ * Configuration (variables d'environnement) :
+ *   NOTIFICATIONS_EMAIL_ENABLED : true pour activer l'envoi reel
+ *   MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD, MAIL_EXPEDITEUR
+ *
+ * Si l'envoi est desactive ou si la configuration manque, la notification
+ * est journalisee (mode simulation) et consideree comme traitee : l'application
+ * demarre et tourne sans aucun identifiant.
  */
 @Component
 public class EmailNotificationSenderAdapter implements NotificationSenderPort {
@@ -34,40 +33,29 @@ public class EmailNotificationSenderAdapter implements NotificationSenderPort {
 
     private final ObjectProvider<JavaMailSender> mailSenderProvider;
     private final ContribuableRepositoryPort contribuableRepositoryPort;
+    private final boolean envoiReelActive;
     private final boolean smtpConfigure;
     private final String expediteur;
 
     public EmailNotificationSenderAdapter(ObjectProvider<JavaMailSender> mailSenderProvider,
                                           ContribuableRepositoryPort contribuableRepositoryPort,
+                                          @Value("${NOTIFICATIONS_EMAIL_ENABLED:false}") boolean envoiReelActive,
                                           @Value("${spring.mail.host:}") String mailHost,
-                                          @Value("${fiscaltrack.mail.expediteur:no-reply@fiscaltrack.mg}") String expediteur) {
+                                          @Value("${MAIL_EXPEDITEUR:no-reply@fiscaltrack.mg}") String expediteur) {
         this.mailSenderProvider = mailSenderProvider;
         this.contribuableRepositoryPort = contribuableRepositoryPort;
+        this.envoiReelActive = envoiReelActive;
         this.smtpConfigure = mailHost != null && !mailHost.isBlank();
         this.expediteur = expediteur;
     }
 
     @Override
     public void envoyer(Notification notification) {
-        CanalEnvoi canal = notification.getCanalEnvoi();
-
-        if (canal == CanalEnvoi.SMS) {
-            logger.warn("[NOTIFICATION][SMS][HORS PERIMETRE] Destinataire={} | Message={}",
-                    notification.getNif(), notification.getMessageContenu());
-            return;
-        }
-
-        if (canal == CanalEnvoi.PORTAIL) {
-            logger.info("[NOTIFICATION][PORTAIL] Notification #{} disponible pour le NIF {}",
-                    notification.getIdNotif(), notification.getNif());
-            return;
-        }
-
-        if (!smtpConfigure) {
-            logger.info("[NOTIFICATION][EMAIL][SMTP non configure - repli log] Destinataire={} | Type={} | Message={}",
-                    notification.getNif(),
-                    notification.getTypeRelance() == null ? null : notification.getTypeRelance().getCode(),
-                    notification.getMessageContenu());
+        if (!envoiReelActive || !smtpConfigure) {
+            logger.info("[NOTIFICATION][EMAIL][SIMULATION] Notification #{} NIF {} | Sujet: {}",
+                    notification.getIdNotif(),
+                    Masquage.masquerNif(notification.getNif()),
+                    premierLigne(notification));
             return;
         }
 
@@ -75,33 +63,39 @@ public class EmailNotificationSenderAdapter implements NotificationSenderPort {
                 .map(Contribuable::getEmailContribuable)
                 .filter(email -> email != null && !email.isBlank());
         if (destinataire.isEmpty()) {
-            logger.warn("[NOTIFICATION][EMAIL][adresse introuvable - repli log] NIF={} | Message={}",
-                    notification.getNif(), notification.getMessageContenu());
-            return;
+            throw new IllegalStateException("Adresse e-mail non renseignée pour ce contribuable");
         }
 
         JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
         if (mailSender == null) {
-            logger.warn("[NOTIFICATION][EMAIL][JavaMailSender indisponible - repli log] NIF={}",
-                    notification.getNif());
-            return;
+            throw new IllegalStateException("Service d'envoi d'e-mail indisponible");
         }
 
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(expediteur);
         message.setTo(destinataire.get());
-        message.setSubject("Fiscal-Track - " + libelleType(notification));
+        message.setSubject(sujet(notification));
         message.setText(notification.getMessageContenu());
         mailSender.send(message);
 
-        logger.info("[NOTIFICATION][EMAIL] Envoyee au NIF {} ({})",
-                notification.getNif(), destinataire.get());
+        logger.info("[NOTIFICATION][EMAIL][REEL] Notification #{} envoyée",
+                notification.getIdNotif());
     }
 
-    private String libelleType(Notification notification) {
-        return notification.getTypeRelance() == null
+    private String sujet(Notification notification) {
+        String type = notification.getTypeRelance() == null
                 ? "Notification"
-                : notification.getTypeRelance().getCode();
+                : notification.getTypeRelance().getCode().replace('_', ' ');
+        return "Fiscal-Track - " + type;
+    }
+
+    private String premierLigne(Notification notification) {
+        String contenu = notification.getMessageContenu();
+        if (contenu == null) {
+            return "";
+        }
+        int retour = contenu.indexOf('\n');
+        return retour < 0 ? contenu : contenu.substring(0, retour);
     }
 
     @Override

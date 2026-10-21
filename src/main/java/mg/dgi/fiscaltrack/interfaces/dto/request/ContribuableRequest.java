@@ -3,6 +3,7 @@ package mg.dgi.fiscaltrack.interfaces.dto.request;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -30,6 +31,9 @@ public class ContribuableRequest {
     @Email(message = "L'email n'est pas valide")
     private String emailContribuable;
 
+    /** Format accepte : +261XXXXXXXXX ou 03XXXXXXXX (10 chiffres). */
+    @Pattern(regexp = "^$|^\\+261\\d{9}$|^03\\d{8}$",
+            message = "Le telephone doit être au format +261XXXXXXXXX ou 03XXXXXXXX")
     private String telephoneContribuable;
     private String adresseContribuable;
     private String communeContribuable;
@@ -58,4 +62,13 @@ public class ContribuableRequest {
 
     /** Categorie d'activite du dossier (pre-remplissage des formulaires IR). */
     private String categorieActivite;
+
+    /** Canal de contact prefere : EMAIL, SMS ou PORTAIL (null = tous). */
+    private String canalPrefere;
+
+    /** Le contribuable accepte les e-mails (null = conserve l'existant). */
+    private Boolean accepteEmail;
+
+    /** Le contribuable accepte les SMS (null = conserve l'existant). */
+    private Boolean accepteSms;
 }

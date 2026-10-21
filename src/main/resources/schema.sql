@@ -287,3 +287,29 @@ ALTER TABLE contribuables ADD COLUMN IF NOT EXISTS categorie_activite VARCHAR(50
 --   motif_rejet     : motif obligeatoire du rejet par l'agent, visible du contribuable
 ALTER TABLE declarations ADD COLUMN IF NOT EXISTS donnees_saisies TEXT;
 ALTER TABLE declarations ADD COLUMN IF NOT EXISTS motif_rejet TEXT;
+
+-- ------------------------------------------------------------
+-- 15. BLOC notifications-reelles : envoi reelle, tracabilite, preferences
+-- ------------------------------------------------------------
+-- Tracabilite de l'envoi (tentatives, erreur courte sans secret)
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS nb_tentatives INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS derniere_tentative TIMESTAMP WITH TIME ZONE;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS erreur_envoi TEXT;
+-- Texte SMS (160 caracteres max, translittere) conserve pour tracabilite/aperçu
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS message_sms TEXT;
+-- Consultation portail (lu / non lu)
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS lu BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Preferences de contact du contribuable
+ALTER TABLE contribuables ADD COLUMN IF NOT EXISTS canal_prefere VARCHAR(255);
+ALTER TABLE contribuables ADD COLUMN IF NOT EXISTS accepte_email BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE contribuables ADD COLUMN IF NOT EXISTS accepte_sms BOOLEAN NOT NULL DEFAULT TRUE;
+
+-- Idempotence : une notification par (obligation, type, canal) et par
+-- (compte, type, canal). Les index partiels ignorent les lignes sans objet.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_notifications_obligation_type_canal
+    ON notifications(id_obligation_fiscale, type_relance, canal_envoi)
+    WHERE id_obligation_fiscale IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_notifications_compte_type_canal
+    ON notifications(id_compte, type_relance, canal_envoi)
+    WHERE id_compte IS NOT NULL AND id_obligation_fiscale IS NULL;

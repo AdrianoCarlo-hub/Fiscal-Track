@@ -47,6 +47,14 @@ public class AjouterContribuableUseCase {
             contribuable.setStatutActivite(
                     mg.dgi.fiscaltrack.domain.enums.StatutActivite.ACTIF);
         }
+        mg.dgi.fiscaltrack.domain.validation.CoordonneesValidator.valider(
+                contribuable.getEmailContribuable(), contribuable.getTelephoneContribuable());
+        if (contribuable.getAccepteEmail() == null) {
+            contribuable.setAccepteEmail(Boolean.TRUE);
+        }
+        if (contribuable.getAccepteSms() == null) {
+            contribuable.setAccepteSms(Boolean.TRUE);
+        }
         contribuable.setMotDePasseHashContribuable(
                 passwordEncoder.encode(contribuable.getMotDePasseHashContribuable()));
         Contribuable saved = repositoryPort.save(contribuable);

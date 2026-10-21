@@ -32,6 +32,9 @@ public class ContribuableResponse {
     private Boolean optionSante;
     private LocalDate dateCloture;
     private String categorieActivite;
+    private String canalPrefere;
+    private Boolean accepteEmail;
+    private Boolean accepteSms;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
 }

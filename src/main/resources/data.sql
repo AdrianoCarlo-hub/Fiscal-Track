@@ -232,5 +232,12 @@ ON CONFLICT (id_agent) DO NOTHING;
 -- Mot de passe : password123 (BCrypt)
 -- ============================================
 INSERT INTO contribuables (nif, raison_sociale, forme_juridique, nom_dirigeant, prenom_dirigeant, email_contribuable, telephone_contribuable, adresse_contribuable, commune_contribuable, mot_de_passe_hash_contribuable, regime_imposition, obligation_comptable, statut_activite, date_immatriculation, autorisation_ouverture, option_sante, created_at, updated_at) VALUES
-('NIF0000001', 'SARL EXEMPLE', 'SARL', 'RABE', 'Miora', 'contact@sarl-exemple.mg', '0344567890', 'Lot II M 34 Bis Antsakaviro', 'ANTANANARIVO', '$2a$10$xppsnB9gYQu.hJaRTX5IyOc5gxCAJejG5OSQ0Umyktsuzxqy43Fi6', 'COMMERCANT', 'COMPTABILITE_COMPLETE', 'ACTIF', '2026-01-05', null, false, NOW(), NOW())
+('NIF0000001', 'SARL EXEMPLE', 'SARL', 'RABE', 'Miora', 'contact@sarl-exemple.mg', '0344567890', 'Lot II M 34 Bis Antsakaviro', 'ANTANANARIVO', '$2a$10$xppsnB9gYQu.hJaRTX5IyOc5gxCAJejG5OSQ0Umyktsuzxqy43Fi6', 'REEL', 'COMPLET', 'ACTIF', '2026-01-05', null, false, NOW(), NOW())
 ON CONFLICT (nif) DO NOTHING;
+
+-- Correction des valeurs legacy de regime / obligation comptable
+-- (anciens seeds utilisaient COMMERCANT / COMPTABILITE_COMPLETE, hors enum)
+UPDATE contribuables SET regime_imposition = 'REEL'
+ WHERE regime_imposition = 'COMMERCANT';
+UPDATE contribuables SET obligation_comptable = 'COMPLET'
+ WHERE obligation_comptable = 'COMPTABILITE_COMPLETE';

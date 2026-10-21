@@ -141,14 +141,16 @@ public class CalculerIsUseCase {
         if (categorie == null || categorie.isBlank()) {
             return BigDecimal.ZERO;
         }
-        String cat = categorie.toUpperCase();
+        String cat = categorie.trim().toUpperCase();
         if (cat.equals("AGRICOLE") || cat.equals("ELEVEUR")) {
             return parametreFiscalService.getValeur("IS_MINIMUM_AGRICOLE_ELEVEUR");
         }
-        if (cat.equals("ARTISAN") || cat.equals("GARGOTIER") || cat.equals("PETIT_COMMERCANT")) {
+        if (cat.equals("ARTISAN") || cat.equals("ARTISANAL")
+                || cat.equals("GARGOTIER") || cat.equals("PETIT_COMMERCANT")) {
             return parametreFiscalService.getValeur("IS_MINIMUM_ARTISAN");
         }
-        if (cat.equals("COMMERCANT") || cat.equals("HOTELIER") || cat.equals("PRESTATAIRE")) {
+        if (cat.equals("COMMERCANT") || cat.equals("COMMERCE")
+                || cat.equals("HOTELIER") || cat.equals("PRESTATAIRE")) {
             return parametreFiscalService.getValeur("IS_MINIMUM_COMMERCANT");
         }
         if (cat.equals("PROFESSION_LIBERALE") || cat.equals("ACTIVITES_MULTIPLES")) {

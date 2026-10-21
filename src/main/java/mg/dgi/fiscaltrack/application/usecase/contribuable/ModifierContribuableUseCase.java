@@ -36,6 +36,9 @@ public class ModifierContribuableUseCase {
      * fourni (champ non-null et non-blanc) ; sinon l'ancien hash est conserve.
      */
     public Contribuable execute(String nif, Contribuable donneesModifiees, String auteur) {
+        mg.dgi.fiscaltrack.domain.validation.CoordonneesValidator.valider(
+                donneesModifiees.getEmailContribuable(), donneesModifiees.getTelephoneContribuable());
+
         Contribuable existant = repositoryPort.findByNif(nif)
                 .orElseThrow(() -> new ContribuableIntrouvableException(nif));
 
@@ -82,6 +85,15 @@ public class ModifierContribuableUseCase {
         }
         if (donneesModifiees.getDateCloture() != null) {
             existant.setDateCloture(donneesModifiees.getDateCloture());
+        }
+        if (donneesModifiees.getCanalPrefere() != null) {
+            existant.setCanalPrefere(donneesModifiees.getCanalPrefere());
+        }
+        if (donneesModifiees.getAccepteEmail() != null) {
+            existant.setAccepteEmail(donneesModifiees.getAccepteEmail());
+        }
+        if (donneesModifiees.getAccepteSms() != null) {
+            existant.setAccepteSms(donneesModifiees.getAccepteSms());
         }
 
         Contribuable saved = repositoryPort.save(existant);

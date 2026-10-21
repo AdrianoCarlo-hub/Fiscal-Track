@@ -22,10 +22,10 @@ public class RappelEcheanceScheduler {
     }
 
     /**
-     * Tous les jours a 8h00 : genere les rappels J-7 et J-1,
-     * puis envoie toutes les notifications en attente.
+     * Tous les jours a 8h00 (heure de Madagascar) : genere les rappels
+     * J-7 et J-1, puis met en file l'envoi des notifications en attente.
      */
-    @Scheduled(cron = "0 0 8 * * *")
+    @Scheduled(cron = "0 0 8 * * *", zone = "Indian/Antananarivo")
     public void executerRappelsQuotidiens() {
         logger.info("[SCHEDULER] Debut de la generation des rappels quotidiens");
 
