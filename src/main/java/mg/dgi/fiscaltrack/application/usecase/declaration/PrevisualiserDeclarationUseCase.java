@@ -150,6 +150,8 @@ public class PrevisualiserDeclarationUseCase {
         reponse.put("tauxApplique", r.getTauxApplique());
         reponse.put("montantBrut", r.getMontantBrut());
         reponse.put("montantMinimum", r.getMontantMinimum());
+        reponse.put("reductions", r.getReductions());
+        reponse.put("acomptesDeduits", r.getAcomptesDeduits());
         reponse.put("explication", r.getExplication());
         reponse.put("etapesCalcul", r.getEtapesCalcul());
         reponse.put("avertissements", r.getAvertissements());
