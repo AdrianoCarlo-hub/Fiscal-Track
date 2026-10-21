@@ -50,6 +50,8 @@ public final class DeclarationRequestMapper {
                 .impotPrincipalCalcule(r.getImpotPrincipalCalcule())
                 .chiffreAffairesDeclare(r.getChiffreAffairesDeclare())
                 .acomptes(r.getAcomptes())
+                .acomptesDouane(r.getAcomptesDouane())
+                .acomptesMarchesPublics(r.getAcomptesMarchesPublics())
                 .caBrut(r.getCaBrut())
                 .adherentCga(r.getAdherentCga())
                 .achatsConformes(r.getAchatsConformes())

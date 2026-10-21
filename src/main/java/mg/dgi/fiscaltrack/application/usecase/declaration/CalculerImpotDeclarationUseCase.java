@@ -106,7 +106,11 @@ public class CalculerImpotDeclarationUseCase {
                                                                 Map<String, Object> params,
                                                                 String nif) {
         if (codeImpot != null && codeImpot.equalsIgnoreCase("ACOMPTE_IR")) {
-            return calculerAcompte(nif);
+            Optional<ResultatCalculFiscal> calcule = acompteDepuisParametres(params);
+            return calcule.isPresent() ? calcule : calculerAcompte(nif);
+        }
+        if (codeImpot != null && codeImpot.equalsIgnoreCase("ACOMPTE_IS")) {
+            return acompteDepuisParametres(params);
         }
         if (codeImpot != null && codeImpot.equalsIgnoreCase("IRSA")) {
             return calculerIrsaMultiLignes(params);
@@ -185,6 +189,43 @@ public class CalculerImpotDeclarationUseCase {
                 .explication("IRSA = somme des IRSA de chaque salarie")
                 .etapesCalcul(etapes)
                 .avertissements(avertissements)
+                .build());
+    }
+
+    /**
+     * Acompte calcule en amont par {@link PreparerDonneesDeclarationUseCase}
+     * (base validee anterieure ou forfait de debut d'activite). Le montant
+     * n'est jamais repris du formulaire.
+     */
+    private Optional<ResultatCalculFiscal> acompteDepuisParametres(Map<String, Object> params) {
+        if (params == null || !(params.get("acompteMontant") instanceof BigDecimal montant)) {
+            return Optional.empty();
+        }
+        Object base = params.get("baseAcompte");
+        Object taux = params.get("tauxAcompte");
+        Object exercice = params.get("exerciceBase");
+        Object code = params.get("codeImpot");
+        String codeImpot = code == null ? "ACOMPTE" : String.valueOf(code);
+
+        List<String> etapes = new ArrayList<>();
+        if (exercice != null) {
+            etapes.add("Base : " + codeImpot + " " + exercice + " = " + base + " Ar");
+        } else {
+            etapes.add("Acompte forfaitaire de début d'activité (" + codeImpot + ")");
+        }
+        if (taux != null) {
+            etapes.add("Taux appliqué : " + taux);
+        }
+        etapes.add("Montant de l'acompte : " + montant + " Ar");
+
+        return Optional.of(ResultatCalculFiscal.builder()
+                .typeImpot(codeImpot)
+                .baseImposable(base instanceof BigDecimal b ? b : null)
+                .tauxApplique(taux instanceof BigDecimal t ? t : null)
+                .montantBrut(montant)
+                .solde(montant)
+                .explication("Acompte obligatoire calculé par le serveur")
+                .etapesCalcul(etapes)
                 .build());
     }
 

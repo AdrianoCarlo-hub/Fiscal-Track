@@ -1,6 +1,7 @@
 package mg.dgi.fiscaltrack.interfaces.controller;
 
 import jakarta.validation.Valid;
+import mg.dgi.fiscaltrack.application.usecase.acompte.ConsulterAcomptesUseCase;
 import mg.dgi.fiscaltrack.application.usecase.contribuable.AjouterContribuableUseCase;
 import mg.dgi.fiscaltrack.application.usecase.contribuable.ConsulterContribuableUseCase;
 import mg.dgi.fiscaltrack.application.usecase.contribuable.ModifierContribuableUseCase;
@@ -29,15 +30,31 @@ public class ContribuableController {
     private final ConsulterContribuableUseCase consulterUseCase;
     private final ModifierContribuableUseCase modifierUseCase;
     private final RechercherContribuableUseCase rechercherUseCase;
+    private final ConsulterAcomptesUseCase consulterAcomptesUseCase;
 
     public ContribuableController(AjouterContribuableUseCase ajouterUseCase,
                                     ConsulterContribuableUseCase consulterUseCase,
                                     ModifierContribuableUseCase modifierUseCase,
-                                    RechercherContribuableUseCase rechercherUseCase) {
+                                    RechercherContribuableUseCase rechercherUseCase,
+                                    ConsulterAcomptesUseCase consulterAcomptesUseCase) {
         this.ajouterUseCase = ajouterUseCase;
         this.consulterUseCase = consulterUseCase;
         this.modifierUseCase = modifierUseCase;
         this.rechercherUseCase = rechercherUseCase;
+        this.consulterAcomptesUseCase = consulterAcomptesUseCase;
+    }
+
+    /**
+     * Acomptes obligatoires IR/IS d'un exercice. Le contribuable ne voit que
+     * ses propres acomptes (403 sinon) ; les agents consultent tout dossier.
+     */
+    @GetMapping("/{nif}/acomptes")
+    public List<java.util.Map<String, Object>> acomptes(@PathVariable String nif,
+                                                        @RequestParam(value = "exercice", required = false)
+                                                        Integer exercice) {
+        UtilisateurConnecte.verifierPropriete(nif, "ces acomptes");
+        int annee = exercice == null ? java.time.LocalDate.now().getYear() : exercice;
+        return consulterAcomptesUseCase.execute(nif, annee);
     }
 
     @GetMapping

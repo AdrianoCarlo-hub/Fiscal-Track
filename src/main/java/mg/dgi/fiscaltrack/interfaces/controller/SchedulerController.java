@@ -58,7 +58,7 @@ public class SchedulerController {
             case "generer-acomptes":
                 int acomptes = genererObligationsScheduler.declencherAcomptes();
                 return ResponseEntity.ok(Map.of(
-                        "message", "Obligations d'acompte IR generees",
+                        "message", "Obligations d'acompte IR/IS generees",
                         "nombreGenerees", acomptes));
             default:
                 return ResponseEntity.badRequest().body(

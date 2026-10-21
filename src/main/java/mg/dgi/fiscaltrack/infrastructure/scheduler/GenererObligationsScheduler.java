@@ -68,9 +68,9 @@ public class GenererObligationsScheduler {
     @Scheduled(cron = "0 0 4 1 2 *")
     public void genererObligationsAcomptes() {
         int annee = LocalDate.now().getYear();
-        logger.info("[SCHEDULER] Debut generation obligations ACOMPTE IR pour {}", annee);
-        int compteur = genererObligationsAcomptesUseCase.execute(annee);
-        logger.info("[SCHEDULER] {} obligations d'acompte IR generees", compteur);
+        logger.info("[SCHEDULER] Debut generation obligations ACOMPTE IR/IS pour {}", annee);
+        int compteur = genererObligationsAcomptesUseCase.executeObligatoires(annee);
+        logger.info("[SCHEDULER] {} obligations d'acompte IR/IS generees", compteur);
     }
 
     /**
@@ -85,7 +85,7 @@ public class GenererObligationsScheduler {
     }
 
     public int declencherAcomptes() {
-        return genererObligationsAcomptesUseCase.executePourAnneeCourante();
+        return genererObligationsAcomptesUseCase.executeObligatoiresPourAnneeCourante();
     }
 
     private int genererPourPeriodicite(Periodicite periodicite, String periodeFiscale) {

@@ -70,10 +70,10 @@ public class PrevisualiserDeclarationUseCase {
         verifierPropriete(obligation, nifAppelant);
 
         PreparerDonneesDeclarationUseCase.DonneesDeclaration donnees =
-                preparerDonneesDeclarationUseCase.execute(
-                        saisie, obligation.getCodeImpot(), obligation.getNif());
+                preparerDonneesDeclarationUseCase.execute(saisie, obligation);
 
         Map<String, Object> reponse = base(obligation, donnees.chiffreAffaires());
+        reponse.put("detailAcomptes", donnees.detailAcomptes());
 
         Optional<ResultatCalculFiscal> resultat = calculerImpotDeclarationUseCase
                 .executeAvecParametres(obligation.getCodeImpot(), donnees.params(), obligation.getNif());

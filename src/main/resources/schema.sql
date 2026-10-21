@@ -313,3 +313,17 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_notifications_obligation_type_canal
 CREATE UNIQUE INDEX IF NOT EXISTS uq_notifications_compte_type_canal
     ON notifications(id_compte, type_relance, canal_envoi)
     WHERE id_compte IS NOT NULL AND id_obligation_fiscale IS NULL;
+
+-- ------------------------------------------------------------
+-- 16. BLOC acomptes-obligatoires : apercu des acomptes calcules
+-- montant_acompte / base_acompte / taux_acompte ne sont qu'un
+-- apercu (le serveur recalcule au depot et fait foi).
+-- credit_utilise : part du credit fiscal anterieur effectivement
+-- imputee sur la declaration courante (R7, jamais rembourse).
+-- ------------------------------------------------------------
+ALTER TABLE obligations_fiscales ADD COLUMN IF NOT EXISTS montant_acompte NUMERIC(15, 2);
+ALTER TABLE obligations_fiscales ADD COLUMN IF NOT EXISTS base_acompte NUMERIC(15, 2);
+ALTER TABLE obligations_fiscales ADD COLUMN IF NOT EXISTS taux_acompte NUMERIC(10, 4);
+ALTER TABLE obligations_fiscales ADD COLUMN IF NOT EXISTS exercice_base_acompte INTEGER;
+
+ALTER TABLE declarations ADD COLUMN IF NOT EXISTS credit_utilise NUMERIC(15, 2);

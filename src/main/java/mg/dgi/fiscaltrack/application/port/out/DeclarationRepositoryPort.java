@@ -21,6 +21,13 @@ public interface DeclarationRepositoryPort {
     /** Derniere declaration d'un impot donne pour un NIF (via ses obligations). */
     Optional<Declaration> findDerniereDeclarationByNifEtImpot(String nif, String codeImpot);
 
+    /**
+     * Derniere declaration VALIDEE d'un impot dont l'exercice est strictement
+     * anterieur a {@code exercice} (base des acomptes obligatoires).
+     */
+    Optional<Declaration> findDerniereDeclarationValideeAvantExercice(String nif, String codeImpot,
+                                                                     int exercice);
+
     List<Declaration> findAll();
 
     Page<Declaration> findAll(Pageable pageable);

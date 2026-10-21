@@ -144,6 +144,8 @@ public class DeclarationController {
         map.put("dateSoumission", d.getDateSoumission().toString());
         map.put("statutValidation", d.getStatutValidation().name());
         map.put("detailCalcul", d.getDetailCalcul());
+        map.put("creditFiscal", d.getCreditFiscal());
+        map.put("creditUtilise", d.getCreditUtilise());
         map.put("motifRejet", d.getMotifRejet());
         return map;
     }

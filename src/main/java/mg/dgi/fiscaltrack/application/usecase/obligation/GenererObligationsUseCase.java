@@ -125,9 +125,12 @@ public class GenererObligationsUseCase {
             return calculerEcheanceIr(periodeFiscale, dateCloture);
         }
         
-        // Acomptes IR (Document IR 2026) : 31 mars et 30 juin
+        // Acomptes IR et IS (Document IR 2026, analogie IS) : 31 mars et 30 juin
         if (codeUpper.equals("ACOMPTE_IR")) {
-            return calculerEcheanceAcompteIr(periodeFiscale);
+            return calculerEcheanceAcompte(periodeFiscale, "IR");
+        }
+        if (codeUpper.equals("ACOMPTE_IS")) {
+            return calculerEcheanceAcompte(periodeFiscale, "IS");
         }
         
         // Par defaut, utiliser mars de l'annee suivante
@@ -221,20 +224,25 @@ public class GenererObligationsUseCase {
      * Chaque acompte = 25% de l'IR N-1.
      * Pour periodeFiscale au format "YYYY-AC1" ou "YYYY-AC2"
      */
-    private LocalDate calculerEcheanceAcompteIr(String periodeFiscale) {
-        // periodeFiscale au format "YYYY-AC1" ou "YYYY-AC2"
+    private LocalDate calculerEcheanceAcompte(String periodeFiscale, String codeImpot) {
+        // periodeFiscale au format "YYYY-AC1", "YYYY-AC2" ou "YYYY-DEBUT"
         String[] parts = periodeFiscale.split("-");
         int annee = Integer.parseInt(parts[0]);
-        String acompte = parts[1];
-        
+        String acompte = parts.length > 1 ? parts[1] : "AC1";
+
+        // Debut d'activite : exigible a la date de creation (apercu recalcule ensuite).
+        if ("DEBUT".equalsIgnoreCase(acompte)) {
+            return LocalDate.now();
+        }
+
+        String prefixe = "ACOMPTE_" + codeImpot + "_ECHEANCE_";
         if (acompte.equals("AC1")) {
-            Integer jour = parametreFiscalService.getValeur("ACOMPTE_IR_ECHEANCE_1").intValue();
-            Integer mois = parametreFiscalService.getValeur("ACOMPTE_IR_ECHEANCE_1_MOIS").intValue();
-            return LocalDate.of(annee, mois, jour);
-        } else {
-            Integer jour = parametreFiscalService.getValeur("ACOMPTE_IR_ECHEANCE_2").intValue();
-            Integer mois = parametreFiscalService.getValeur("ACOMPTE_IR_ECHEANCE_2_MOIS").intValue();
+            Integer jour = parametreFiscalService.getValeur(prefixe + "1").intValue();
+            Integer mois = parametreFiscalService.getValeur(prefixe + "1_MOIS").intValue();
             return LocalDate.of(annee, mois, jour);
         }
+        Integer jour = parametreFiscalService.getValeur(prefixe + "2").intValue();
+        Integer mois = parametreFiscalService.getValeur(prefixe + "2_MOIS").intValue();
+        return LocalDate.of(annee, mois, jour);
     }
 }

@@ -49,4 +49,24 @@ public interface DeclarationJpaRepository extends JpaRepository<DeclarationEntit
     List<DeclarationEntity> findLatestByNifAndCodeImpot(@Param("nif") String nif,
                                                         @Param("codeImpot") String codeImpot,
                                                         Pageable pageable);
+
+    /**
+     * Derniere declaration VALIDEE d'un impot dont l'exercice est strictement
+     * anterieur a {@code periodeLimite} (format AAAA). Sert de base aux
+     * acomptes obligatoires et au report du credit fiscal.
+     */
+    @Query("""
+            SELECT d FROM DeclarationEntity d
+            WHERE d.statutValidation = 'VALIDEE'
+            AND d.idObligationFiscale IN (
+                SELECT o.idObligationFiscale FROM ObligationFiscaleEntity o
+                WHERE o.nif = :nif AND o.codeImpot = :codeImpot
+                AND o.periodeFiscale < :periodeLimite
+            )
+            ORDER BY d.dateSoumission DESC
+            """)
+    List<DeclarationEntity> findValideeByNifEtImpotAvantPeriode(@Param("nif") String nif,
+                                                                @Param("codeImpot") String codeImpot,
+                                                                @Param("periodeLimite") String periodeLimite,
+                                                                Pageable pageable);
 }

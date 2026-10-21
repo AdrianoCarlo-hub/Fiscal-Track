@@ -42,9 +42,17 @@ public class DeclarationRequest {
     @PositiveOrZero(message = "L'impot principal ne peut pas etre negatif")
     private BigDecimal impotPrincipalCalcule;
 
-    /** Acomptes deja verses (utilises pour l'IS et pour l'IR). */
+    /** Ancien champ libre des acomptes : ignore par la liquidation serveur. */
     @PositiveOrZero(message = "Les acomptes verses ne peuvent pas etre negatifs")
     private BigDecimal acomptes;
+
+    /** Acomptes de douane saisis (facultatif, R5). */
+    @PositiveOrZero(message = "Les acomptes de douane ne peuvent pas etre negatifs")
+    private BigDecimal acomptesDouane;
+
+    /** Acomptes sur marches publics saisis (facultatif, R5). */
+    @PositiveOrZero(message = "Les acomptes sur marches publics ne peuvent pas etre negatifs")
+    private BigDecimal acomptesMarchesPublics;
 
     // ==================== IS (impot synthetique) ====================
 

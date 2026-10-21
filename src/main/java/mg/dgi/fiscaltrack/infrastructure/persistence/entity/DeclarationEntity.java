@@ -70,6 +70,9 @@ public class DeclarationEntity {
     @Column(name = "credit_fiscal", precision = 15, scale = 2)
     private BigDecimal creditFiscal;
 
+    @Column(name = "credit_utilise", precision = 15, scale = 2)
+    private BigDecimal creditUtilise;
+
     @Column(name = "categorie_activite", length = 50)
     private String categorieActivite;
 

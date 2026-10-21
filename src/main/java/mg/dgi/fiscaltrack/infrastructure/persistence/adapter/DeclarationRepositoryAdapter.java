@@ -63,6 +63,16 @@ public class DeclarationRepositoryAdapter implements DeclarationRepositoryPort {
     }
 
     @Override
+    public Optional<Declaration> findDerniereDeclarationValideeAvantExercice(String nif, String codeImpot,
+                                                                             int exercice) {
+        return jpaRepository.findValideeByNifEtImpotAvantPeriode(
+                        nif, codeImpot, String.valueOf(exercice), PageRequest.of(0, 1))
+                .stream()
+                .findFirst()
+                .map(mapper::toDomain);
+    }
+
+    @Override
     public List<Declaration> findAll() {
         return jpaRepository.findAll().stream()
                 .map(mapper::toDomain)

@@ -23,6 +23,10 @@ public class ObligationFiscaleMapper {
                 .dateLimiteReelle(e.getDateLimiteReelle())
                 .statutDeclaration(parseStatutDeclaration(e.getStatutDeclaration()))
                 .dateDepotEffectif(e.getDateDepotEffectif())
+                .montantAcompte(e.getMontantAcompte())
+                .baseAcompte(e.getBaseAcompte())
+                .tauxAcompte(e.getTauxAcompte())
+                .exerciceBaseAcompte(e.getExerciceBaseAcompte())
                 .createdAt(e.getCreatedAt())
                 .updatedAt(e.getUpdatedAt())
                 .build();
@@ -43,6 +47,10 @@ public class ObligationFiscaleMapper {
                 .dateLimiteReelle(d.getDateLimiteReelle())
                 .statutDeclaration(d.getStatutDeclaration() == null ? null : d.getStatutDeclaration().name())
                 .dateDepotEffectif(d.getDateDepotEffectif())
+                .montantAcompte(d.getMontantAcompte())
+                .baseAcompte(d.getBaseAcompte())
+                .tauxAcompte(d.getTauxAcompte())
+                .exerciceBaseAcompte(d.getExerciceBaseAcompte())
                 .createdAt(d.getCreatedAt())
                 .updatedAt(d.getUpdatedAt())
                 .build();

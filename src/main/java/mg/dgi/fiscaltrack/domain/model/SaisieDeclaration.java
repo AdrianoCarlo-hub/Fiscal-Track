@@ -40,8 +40,14 @@ public class SaisieDeclaration {
     private BigDecimal chargesSalariales;
     private String categorieActiviteIs;
 
-    /** Acomptes deja verses (IS ou IR selon le type de l'obligation). */
+    /** Ancien champ libre des acomptes : ignore pour la liquidation (serveur fait foi). */
     private BigDecimal acomptes;
+
+    /** Acomptes de douane saisis (facultatif, R5). */
+    private BigDecimal acomptesDouane;
+
+    /** Acomptes marches publics saisis (facultatif, R5). */
+    private BigDecimal acomptesMarchesPublics;
 
     // ===== TVA =====
     private BigDecimal caLocal;

@@ -46,4 +46,24 @@ public interface CompteCourantFiscalJpaRepository extends JpaRepository<CompteCo
            "WHERE c.statutRecouvrement = 'TITRE_EMIS' " +
            "AND c.updatedAt < :seuil")
     List<CompteCourantFiscalEntity> findEligiblesAtd(@Param("seuil") java.time.OffsetDateTime seuil);
+
+    /**
+     * Somme des montants REELLEMENT payes pour les acomptes d'un impot
+     * (ACOMPTE_IR ou ACOMPTE_IS) et d'un exercice donne.
+     */
+    @Query("""
+            SELECT COALESCE(SUM(c.montantPaye), 0) FROM CompteCourantFiscalEntity c
+            WHERE c.nif = :nif
+            AND c.idDeclaration IN (
+                SELECT d.idDeclaration FROM DeclarationEntity d
+                WHERE d.idObligationFiscale IN (
+                    SELECT o.idObligationFiscale FROM ObligationFiscaleEntity o
+                    WHERE o.nif = :nif AND o.codeImpot = :codeImpot
+                    AND o.periodeFiscale LIKE :prefixe
+                )
+            )
+            """)
+    java.math.BigDecimal sommeMontantPayeAcomptes(@Param("nif") String nif,
+                                                  @Param("codeImpot") String codeImpot,
+                                                  @Param("prefixe") String prefixe);
 }

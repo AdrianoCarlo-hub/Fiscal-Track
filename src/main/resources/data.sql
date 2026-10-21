@@ -241,3 +241,27 @@ UPDATE contribuables SET regime_imposition = 'REEL'
  WHERE regime_imposition = 'COMMERCANT';
 UPDATE contribuables SET obligation_comptable = 'COMPLET'
  WHERE obligation_comptable = 'COMPTABILITE_COMPLETE';
+-- ============================================
+-- BLOC acomptes-obligatoires : taux dedies, forfaits manquants,
+-- echeances IS (ANALOGIE IR - A CONFIRMER).
+-- ACOMPTE_TAUX_PROVISIONNEL reste en base (0.50) mais devient
+-- obsolète : le calcul utilise desormais ACOMPTE_*_TAUX_PAR_ACOMPTE.
+-- ============================================
+INSERT INTO parametres_fiscaux (code, valeur, annee_debut, annee_fin, base_legale, secteur, description) VALUES
+('ACOMPTE_IR_TAUX_PAR_ACOMPTE', 0.25, 2026, null, 'IR 2026 - base exacte A CONFIRMER', 'ACOMPTE', 'Taux de chaque acompte IR (25 % de l''impot de reference)'),
+('ACOMPTE_IS_TAUX_PAR_ACOMPTE', 0.25, 2026, null, 'ANALOGIE IR - A CONFIRMER', 'ACOMPTE', 'Taux de chaque acompte IS (25 % de l''impot de reference)'),
+('ACOMPTE_IR_EXPORTATEUR_AGRICOLE', 100000, 2026, null, 'CDI 01.01.14 VI', 'ACOMPTE', 'Acompte debut activite IR - exportateur agricole'),
+('ACOMPTE_IR_EDUCATION_SANTE', 200000, 2026, null, 'A CONFIRMER', 'ACOMPTE', 'Acompte debut activite IR - education, sante'),
+('ACOMPTE_IS_ECHEANCE_1', 31, 2026, null, 'ANALOGIE IR - A CONFIRMER', 'ACOMPTE', 'Jour echeance 1er acompte IS (31 mars)'),
+('ACOMPTE_IS_ECHEANCE_1_MOIS', 3, 2026, null, 'ANALOGIE IR - A CONFIRMER', 'ACOMPTE', 'Mois echeance 1er acompte IS (mars)'),
+('ACOMPTE_IS_ECHEANCE_2', 30, 2026, null, 'ANALOGIE IR - A CONFIRMER', 'ACOMPTE', 'Jour echeance 2eme acompte IS (30 juin)'),
+('ACOMPTE_IS_ECHEANCE_2_MOIS', 6, 2026, null, 'ANALOGIE IR - A CONFIRMER', 'ACOMPTE', 'Mois echeance 2eme acompte IS (juin)')
+ON CONFLICT (code) DO NOTHING;
+
+UPDATE parametres_fiscaux
+SET description = 'OBSOLETE - remplace par ACOMPTE_IR_TAUX_PAR_ACOMPTE et ACOMPTE_IS_TAUX_PAR_ACOMPTE'
+WHERE code = 'ACOMPTE_TAUX_PROVISIONNEL';
+
+INSERT INTO types_impots (code_impot, nom_impot, periodicite, echeance_theorique_jour, echeance_theorique_mois, created_at, updated_at) VALUES
+('ACOMPTE_IS', 'Acompte provisionnel IS', 'ANNUELLE', 31, 3, NOW(), NOW())
+ON CONFLICT (code_impot) DO NOTHING;

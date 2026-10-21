@@ -1,8 +1,10 @@
 package mg.dgi.fiscaltrack.application.usecase.contribuable;
 
 import mg.dgi.fiscaltrack.application.port.out.ContribuableRepositoryPort;
+import mg.dgi.fiscaltrack.application.usecase.obligation.GenererObligationsAcomptesUseCase;
 import mg.dgi.fiscaltrack.application.usecase.historique.EnregistrerActionUseCase;
 import mg.dgi.fiscaltrack.domain.model.Contribuable;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -12,6 +14,15 @@ public class AjouterContribuableUseCase {
     private final ContribuableRepositoryPort repositoryPort;
     private final PasswordEncoder passwordEncoder;
     private final EnregistrerActionUseCase enregistrerActionUseCase;
+
+    /** Injection optionnelle : conserve le constructeur utilise par les tests. */
+    private GenererObligationsAcomptesUseCase genererObligationsAcomptesUseCase;
+
+    @Autowired(required = false)
+    public void setGenererObligationsAcomptesUseCase(
+            GenererObligationsAcomptesUseCase genererObligationsAcomptesUseCase) {
+        this.genererObligationsAcomptesUseCase = genererObligationsAcomptesUseCase;
+    }
 
     public AjouterContribuableUseCase(ContribuableRepositoryPort repositoryPort,
                                       PasswordEncoder passwordEncoder,
@@ -64,6 +75,18 @@ public class AjouterContribuableUseCase {
                 "CREATION_CONTRIBUABLE",
                 "Creation du contribuable " + saved.getNif()
                         + " (" + saved.getRaisonSociale() + ")");
+
+        if (genererObligationsAcomptesUseCase != null) {
+            try {
+                genererObligationsAcomptesUseCase.genererDebutActivite(saved);
+            } catch (RuntimeException e) {
+                // La creation du contribuable ne doit pas echouer si l'acompte
+                // forfaitaire ne peut pas etre genere (parametre manquant).
+                org.slf4j.LoggerFactory.getLogger(AjouterContribuableUseCase.class)
+                        .warn("[ACOMPTE] Generation debut d'activite impossible pour {} : {}",
+                                saved.getNif(), e.getMessage());
+            }
+        }
         return saved;
     }
 }

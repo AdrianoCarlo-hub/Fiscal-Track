@@ -47,6 +47,9 @@ public class Declaration {
     /** Credit fiscal genere. */
     private BigDecimal creditFiscal;
 
+    /** Part du credit fiscal anterieur imputee sur cette declaration (R7). */
+    private BigDecimal creditUtilise;
+
     /** Categorie d'activite (pour IR et IS). */
     private CategorieActivite categorieActivite;
 

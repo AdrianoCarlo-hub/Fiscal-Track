@@ -12,6 +12,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
@@ -55,6 +56,18 @@ public class ObligationFiscaleEntity {
 
     @Column(name = "date_depot_effectif")
     private LocalDate dateDepotEffectif;
+
+    @Column(name = "montant_acompte", precision = 15, scale = 2)
+    private BigDecimal montantAcompte;
+
+    @Column(name = "base_acompte", precision = 15, scale = 2)
+    private BigDecimal baseAcompte;
+
+    @Column(name = "taux_acompte", precision = 10, scale = 4)
+    private BigDecimal tauxAcompte;
+
+    @Column(name = "exercice_base_acompte")
+    private Integer exerciceBaseAcompte;
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;

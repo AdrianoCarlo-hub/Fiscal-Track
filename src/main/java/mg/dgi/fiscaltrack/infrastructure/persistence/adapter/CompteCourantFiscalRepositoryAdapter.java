@@ -96,6 +96,13 @@ public class CompteCourantFiscalRepositoryAdapter implements CompteCourantFiscal
     }
 
     @Override
+    public java.math.BigDecimal sommeMontantPayeAcomptes(String nif, String codeImpotAcompte, int exercice) {
+        java.math.BigDecimal somme = jpaRepository.sommeMontantPayeAcomptes(
+                nif, codeImpotAcompte, exercice + "-%");
+        return somme == null ? java.math.BigDecimal.ZERO : somme;
+    }
+
+    @Override
     public List<CompteCourantFiscal> findEligiblesAtd(LocalDate seuilUpdatedAt) {
         OffsetDateTime seuil = seuilUpdatedAt.atStartOfDay().atOffset(OffsetDateTime.now().getOffset());
         return jpaRepository.findEligiblesAtd(seuil).stream()

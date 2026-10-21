@@ -1,11 +1,14 @@
 package mg.dgi.fiscaltrack.application.usecase.declaration;
 
 import mg.dgi.fiscaltrack.application.port.out.ContribuableRepositoryPort;
+import mg.dgi.fiscaltrack.application.usecase.acompte.AcomptesObligatoiresService;
 import mg.dgi.fiscaltrack.application.usecase.admin.ParametreFiscalService;
 import mg.dgi.fiscaltrack.domain.exception.CalculFiscalInvalideException;
 import mg.dgi.fiscaltrack.domain.model.Contribuable;
 import mg.dgi.fiscaltrack.domain.model.DeficitReportable;
+import mg.dgi.fiscaltrack.domain.model.ObligationFiscale;
 import mg.dgi.fiscaltrack.domain.model.SaisieDeclaration;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -35,17 +38,27 @@ import java.util.Set;
 public class PreparerDonneesDeclarationUseCase {
 
     /** Types d'impots pour lesquels un formulaire de declaration existe. */
-    public static final Set<String> TYPES_FORMULAIRE = Set.of("IS", "TVA", "IR", "IRSA", "ACOMPTE_IR");
+    public static final Set<String> TYPES_FORMULAIRE = Set.of("IS", "TVA", "IR", "IRSA", "ACOMPTE_IR", "ACOMPTE_IS");
 
     public static final int MAX_SALARIES = 50;
 
     private final ContribuableRepositoryPort contribuableRepositoryPort;
     private final ParametreFiscalService parametreFiscalService;
+    private final AcomptesObligatoiresService acomptesObligatoiresService;
 
+    /** Constructeur historique (tests et anciens appels, sans liquidation serveur). */
     public PreparerDonneesDeclarationUseCase(ContribuableRepositoryPort contribuableRepositoryPort,
                                              ParametreFiscalService parametreFiscalService) {
+        this(contribuableRepositoryPort, parametreFiscalService, null);
+    }
+
+    @Autowired
+    public PreparerDonneesDeclarationUseCase(ContribuableRepositoryPort contribuableRepositoryPort,
+                                             ParametreFiscalService parametreFiscalService,
+                                             AcomptesObligatoiresService acomptesObligatoiresService) {
         this.contribuableRepositoryPort = contribuableRepositoryPort;
         this.parametreFiscalService = parametreFiscalService;
+        this.acomptesObligatoiresService = acomptesObligatoiresService;
     }
 
     /**
@@ -57,7 +70,14 @@ public class PreparerDonneesDeclarationUseCase {
      */
     public record DonneesDeclaration(Map<String, Object> params,
                                      BigDecimal chiffreAffaires,
-                                     Map<String, Object> donneesSaisies) {
+                                     Map<String, Object> donneesSaisies,
+                                     Map<String, Object> detailAcomptes,
+                                     BigDecimal creditAnterieur) {
+        public DonneesDeclaration(Map<String, Object> params,
+                                  BigDecimal chiffreAffaires,
+                                  Map<String, Object> donneesSaisies) {
+            this(params, chiffreAffaires, donneesSaisies, Map.of(), BigDecimal.ZERO);
+        }
     }
 
     /**
@@ -69,6 +89,22 @@ public class PreparerDonneesDeclarationUseCase {
      *         champ obligatoire manque ou si une valeur est invalide
      */
     public DonneesDeclaration execute(SaisieDeclaration saisie, String codeImpot, String nif) {
+        return executeInterne(saisie, codeImpot, nif, null);
+    }
+
+    /**
+     * Variante utilisee par l'apercu et le depot : l'obligation permet de
+     * connaitre l'exercice et de liquider les acomptes reellement payes.
+     */
+    public DonneesDeclaration execute(SaisieDeclaration saisie, ObligationFiscale obligation) {
+        if (obligation == null) {
+            return execute(saisie, null, null);
+        }
+        return executeInterne(saisie, obligation.getCodeImpot(), obligation.getNif(), obligation);
+    }
+
+    private DonneesDeclaration executeInterne(SaisieDeclaration saisie, String codeImpot,
+                                              String nif, ObligationFiscale obligation) {
         if (codeImpot == null || codeImpot.isBlank()) {
             throw new CalculFiscalInvalideException("Type d'impot inconnu pour cette obligation");
         }
@@ -82,11 +118,11 @@ public class PreparerDonneesDeclarationUseCase {
         Contribuable contribuable = contribuableRepositoryPort.findByNif(nif).orElse(null);
 
         return switch (type) {
-            case "IS" -> preparerIs(saisie, contribuable);
+            case "IS" -> preparerIs(saisie, contribuable, obligation);
             case "TVA" -> preparerTva(saisie);
-            case "IR" -> preparerIr(saisie, contribuable);
+            case "IR" -> preparerIr(saisie, contribuable, obligation);
             case "IRSA" -> preparerIrsa(saisie);
-            default -> preparerAcompte();
+            default -> preparerAcompte(obligation);
         };
     }
 
@@ -94,7 +130,8 @@ public class PreparerDonneesDeclarationUseCase {
     // IS
     // ------------------------------------------------------------------
 
-    private DonneesDeclaration preparerIs(SaisieDeclaration s, Contribuable contribuable) {
+    private DonneesDeclaration preparerIs(SaisieDeclaration s, Contribuable contribuable,
+                                          ObligationFiscale obligation) {
         BigDecimal caBrut = premierNonNul(s.getCaBrut(), s.getChiffreAffairesDeclare());
         exigerPresent(caBrut, "Le chiffre d'affaires brut encaisse (Ar)");
         exigerPositif(caBrut, "Le chiffre d'affaires brut encaisse (Ar)");
@@ -104,12 +141,14 @@ public class PreparerDonneesDeclarationUseCase {
             categorie = contribuable.getCategorieActivite();
         }
 
+        exigerPositif(s.getAcomptesDouane(), "Les acomptes de douane (Ar)");
+        exigerPositif(s.getAcomptesMarchesPublics(), "Les acomptes marches publics (Ar)");
+
         Map<String, Object> params = new HashMap<>();
         params.put("caBrut", caBrut);
         params.put("adherentCga", Boolean.TRUE.equals(s.getAdherentCga()));
         params.put("achatsConformes", nvl(s.getAchatsConformes()));
         params.put("chargesSalariales", nvl(s.getChargesSalariales()));
-        params.put("acomptes", nvl(s.getAcomptes()));
         params.put("categorieActivite", categorie);
 
         Map<String, Object> saisi = new LinkedHashMap<>();
@@ -117,10 +156,18 @@ public class PreparerDonneesDeclarationUseCase {
         saisi.put("adherentCga", Boolean.TRUE.equals(s.getAdherentCga()));
         saisi.put("achatsConformes", nvl(s.getAchatsConformes()));
         saisi.put("chargesSalariales", nvl(s.getChargesSalariales()));
-        saisi.put("acomptes", nvl(s.getAcomptes()));
         saisi.put("categorieActiviteIs", categorie);
 
-        return new DonneesDeclaration(params, caBrut, saisi);
+        AcomptesObligatoiresService.Liquidation liquidation =
+                appliquerLiquidation("IS", s, obligation, params, saisi);
+        if (liquidation == null) {
+            params.put("acomptes", nvl(s.getAcomptes()));
+            saisi.put("acomptes", nvl(s.getAcomptes()));
+        }
+
+        return new DonneesDeclaration(params, caBrut, saisi,
+                liquidation == null ? Map.of() : liquidation.detail(),
+                liquidation == null ? BigDecimal.ZERO : liquidation.creditAnterieur());
     }
 
     // ------------------------------------------------------------------
@@ -183,7 +230,8 @@ public class PreparerDonneesDeclarationUseCase {
     // IR
     // ------------------------------------------------------------------
 
-    private DonneesDeclaration preparerIr(SaisieDeclaration s, Contribuable contribuable) {
+    private DonneesDeclaration preparerIr(SaisieDeclaration s, Contribuable contribuable,
+                                          ObligationFiscale obligation) {
         BigDecimal caHT = premierNonNul(s.getCaHT(), s.getChiffreAffairesDeclare());
         exigerPresent(caHT, "Le chiffre d'affaires HT (Ar)");
         exigerPositif(caHT, "Le chiffre d'affaires HT (Ar)");
@@ -191,6 +239,8 @@ public class PreparerDonneesDeclarationUseCase {
         exigerPositif(s.getReintegrations(), "Les reintegrations extra-comptables (Ar)");
         exigerPositif(s.getDeductions(), "Les deductions extra-comptables (Ar)");
         exigerPositif(s.getAcomptes(), "Les acomptes verses (Ar)");
+        exigerPositif(s.getAcomptesDouane(), "Les acomptes de douane (Ar)");
+        exigerPositif(s.getAcomptesMarchesPublics(), "Les acomptes marches publics (Ar)");
 
         // L'autorisation d'ouverture et l'option sante ne se saisissent PAS
         // dans la declaration : elles sont lues dans la fiche du contribuable.
@@ -229,7 +279,6 @@ public class PreparerDonneesDeclarationUseCase {
         params.put("deductions", nvl(s.getDeductions()));
         params.put("deficitsReportables", deficits);
         params.put("categorieActivite", categorie);
-        params.put("acomptes", nvl(s.getAcomptes()));
         params.put("moisActifs", moisActifs);
         params.put("autorisationOuverture", autorisationOuverture);
         params.put("optionSante", optionSante);
@@ -241,14 +290,22 @@ public class PreparerDonneesDeclarationUseCase {
         saisi.put("deductions", nvl(s.getDeductions()));
         saisi.put("deficitsReportables", deficits);
         saisi.put("categorieActivite", categorie);
-        saisi.put("acomptes", nvl(s.getAcomptes()));
         saisi.put("moisActifs", moisActifs);
         Map<String, Object> dossier = new LinkedHashMap<>();
         dossier.put("autorisationOuverture", autorisationOuverture);
         dossier.put("optionSante", optionSante);
         saisi.put("sourceDossier", dossier);
 
-        return new DonneesDeclaration(params, caHT, saisi);
+        AcomptesObligatoiresService.Liquidation liquidation =
+                appliquerLiquidation("IR", s, obligation, params, saisi);
+        if (liquidation == null) {
+            params.put("acomptes", nvl(s.getAcomptes()));
+            saisi.put("acomptes", nvl(s.getAcomptes()));
+        }
+
+        return new DonneesDeclaration(params, caHT, saisi,
+                liquidation == null ? Map.of() : liquidation.detail(),
+                liquidation == null ? BigDecimal.ZERO : liquidation.creditAnterieur());
     }
 
     // ------------------------------------------------------------------
@@ -330,12 +387,84 @@ public class PreparerDonneesDeclarationUseCase {
     // Acompte provisionnel IR
     // ------------------------------------------------------------------
 
-    /** Aucun champ saisi : le montant est 25 % de l'IR N-1 (historique du NIF). */
-    private DonneesDeclaration preparerAcompte() {
+    /**
+     * Acompte : aucun montant libre. Avec une obligation, le serveur calcule
+     * le montant depuis la declaration validee anterieure (ou le forfait de
+     * debut d'activite) et trace l'exercice de base.
+     */
+    private DonneesDeclaration preparerAcompte(ObligationFiscale obligation) {
+        if (obligation == null || acomptesObligatoiresService == null) {
+            Map<String, Object> params = new HashMap<>();
+            Map<String, Object> saisi = new LinkedHashMap<>();
+            saisi.put("source", "Derniere declaration IR du dossier (IR N-1)");
+            return new DonneesDeclaration(params, BigDecimal.ZERO, saisi);
+        }
+
+        AcomptesObligatoiresService.CalculAcompte calcul =
+                acomptesObligatoiresService.calculerPourObligation(obligation);
+        if (!calcul.disponible()) {
+            throw new CalculFiscalInvalideException(calcul.message());
+        }
+
         Map<String, Object> params = new HashMap<>();
+        params.put("acompteMontant", calcul.montant());
+        params.put("baseAcompte", calcul.base());
+        params.put("tauxAcompte", calcul.taux());
+        params.put("exerciceBase", calcul.exerciceBase());
+        params.put("codeImpot", calcul.codeImpot());
+
         Map<String, Object> saisi = new LinkedHashMap<>();
-        saisi.put("source", "Derniere declaration IR du dossier (IR N-1)");
-        return new DonneesDeclaration(params, BigDecimal.ZERO, saisi);
+        saisi.put("source", "Calcul serveur : " + calcul.codeImpot());
+        saisi.put("montant", calcul.montant());
+        saisi.put("base", calcul.base());
+        saisi.put("exerciceBase", calcul.exerciceBase());
+        saisi.put("taux", calcul.taux());
+        saisi.put("detailAcomptes", calcul.detail());
+        saisi.put("avertissements", calcul.avertissements());
+
+        return new DonneesDeclaration(params, BigDecimal.ZERO, saisi,
+                calcul.detail(), BigDecimal.ZERO);
+    }
+
+    /**
+     * Liquide les acomptes reellement payes, les autres acomptes saisis et le
+     * credit anterieur. Retourne null si le service n'est pas disponible
+     * (ancien constructeur, tests historiques).
+     */
+    private AcomptesObligatoiresService.Liquidation appliquerLiquidation(
+            String codeImpotParent, SaisieDeclaration s, ObligationFiscale obligation,
+            Map<String, Object> params, Map<String, Object> saisi) {
+        if (acomptesObligatoiresService == null || obligation == null) {
+            return null;
+        }
+        int exercice = exerciceDe(obligation.getPeriodeFiscale());
+        if (exercice <= 0) {
+            return null;
+        }
+        AcomptesObligatoiresService.Liquidation liquidation =
+                acomptesObligatoiresService.liquider(
+                        obligation.getNif(), codeImpotParent, exercice,
+                        s.getAcomptesDouane(), s.getAcomptesMarchesPublics());
+
+        params.put("acomptes", liquidation.totalDeduit());
+        saisi.put("acomptes", liquidation.totalDeduit());
+        saisi.put("acomptesPayes", liquidation.acomptesPayes());
+        saisi.put("acomptesDouane", nvl(s.getAcomptesDouane()));
+        saisi.put("acomptesMarchesPublics", nvl(s.getAcomptesMarchesPublics()));
+        saisi.put("creditAnterieur", liquidation.creditAnterieur());
+        saisi.put("detailAcomptes", liquidation.detail());
+        return liquidation;
+    }
+
+    private static int exerciceDe(String periode) {
+        if (periode == null || periode.length() < 4) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(periode.substring(0, 4));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     // ------------------------------------------------------------------
