@@ -5,6 +5,7 @@ import mg.dgi.fiscaltrack.application.usecase.acompte.ConsulterAcomptesUseCase;
 import mg.dgi.fiscaltrack.application.usecase.contribuable.AjouterContribuableUseCase;
 import mg.dgi.fiscaltrack.application.usecase.contribuable.ConsulterContribuableUseCase;
 import mg.dgi.fiscaltrack.application.usecase.contribuable.ModifierContribuableUseCase;
+import mg.dgi.fiscaltrack.application.usecase.contribuable.ModifierPreferencesContactUseCase;
 import mg.dgi.fiscaltrack.application.usecase.contribuable.RechercherContribuableUseCase;
 import mg.dgi.fiscaltrack.domain.enums.FormeJuridique;
 import mg.dgi.fiscaltrack.domain.enums.ObligationComptable;
@@ -12,6 +13,7 @@ import mg.dgi.fiscaltrack.domain.enums.RegimeImposition;
 import mg.dgi.fiscaltrack.domain.enums.StatutActivite;
 import mg.dgi.fiscaltrack.domain.model.Contribuable;
 import mg.dgi.fiscaltrack.interfaces.dto.request.ContribuableRequest;
+import mg.dgi.fiscaltrack.interfaces.dto.request.PreferencesContactRequest;
 import mg.dgi.fiscaltrack.interfaces.dto.response.ContribuableResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -31,17 +33,20 @@ public class ContribuableController {
     private final ModifierContribuableUseCase modifierUseCase;
     private final RechercherContribuableUseCase rechercherUseCase;
     private final ConsulterAcomptesUseCase consulterAcomptesUseCase;
+    private final ModifierPreferencesContactUseCase modifierPreferencesUseCase;
 
     public ContribuableController(AjouterContribuableUseCase ajouterUseCase,
                                     ConsulterContribuableUseCase consulterUseCase,
                                     ModifierContribuableUseCase modifierUseCase,
                                     RechercherContribuableUseCase rechercherUseCase,
-                                    ConsulterAcomptesUseCase consulterAcomptesUseCase) {
+                                    ConsulterAcomptesUseCase consulterAcomptesUseCase,
+                                    ModifierPreferencesContactUseCase modifierPreferencesUseCase) {
         this.ajouterUseCase = ajouterUseCase;
         this.consulterUseCase = consulterUseCase;
         this.modifierUseCase = modifierUseCase;
         this.rechercherUseCase = rechercherUseCase;
         this.consulterAcomptesUseCase = consulterAcomptesUseCase;
+        this.modifierPreferencesUseCase = modifierPreferencesUseCase;
     }
 
     /**
@@ -78,12 +83,14 @@ public class ContribuableController {
     }
 
     @GetMapping("/search")
+    @PreAuthorize("hasAnyRole('AGENT_GESTION','AGENT_RECETTE','RESPONSABLE','ADMIN')")
     public List<ContribuableResponse> rechercher(@RequestParam("q") String critere) {
         return rechercherUseCase.execute(critere).stream().map(this::toResponse).toList();
     }
 
     /** Recherche paginee : /api/contribuables/search/paginated?q=text&page=0&size=20 */
     @GetMapping("/search/paginated")
+    @PreAuthorize("hasAnyRole('AGENT_GESTION','AGENT_RECETTE','RESPONSABLE','ADMIN')")
     public Page<ContribuableResponse> rechercherPagine(
             @RequestParam("q") String critere,
             @PageableDefault(size = 20) Pageable pageable) {
@@ -107,6 +114,22 @@ public class ContribuableController {
         Contribuable donnees = toDomain(request);
         String auteur = principal == null ? null : principal.getName();
         return ResponseEntity.ok(toResponse(modifierUseCase.execute(nif, donnees, auteur)));
+    }
+
+    /** Le contribuable met a jour ses propres preferences de contact. */
+    @PutMapping("/{nif}/preferences-contact")
+    public ResponseEntity<ContribuableResponse> preferencesContact(
+            @PathVariable String nif,
+            @Valid @RequestBody PreferencesContactRequest request,
+            java.security.Principal principal) {
+        UtilisateurConnecte.verifierPropriete(nif, "ces préférences de contact");
+        String auteur = principal == null ? null : principal.getName();
+        return ResponseEntity.ok(toResponse(modifierPreferencesUseCase.execute(
+                nif,
+                request.getCanalPrefere(),
+                request.getAccepteEmail(),
+                request.getAccepteSms(),
+                auteur)));
     }
 
     private Contribuable toDomain(ContribuableRequest r) {

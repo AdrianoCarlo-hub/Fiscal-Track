@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
 import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
@@ -76,14 +78,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleValidation(
             MethodArgumentNotValidException e, HttpServletRequest request) {
         StringBuilder message = new StringBuilder();
+        Map<String, String> champs = new LinkedHashMap<>();
         for (FieldError erreur : e.getBindingResult().getFieldErrors()) {
             if (message.length() > 0) {
                 message.append(" ; ");
             }
             message.append(erreur.getField()).append(" : ").append(erreur.getDefaultMessage());
+            champs.putIfAbsent(erreur.getField(), erreur.getDefaultMessage());
         }
         return construire(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR",
-                message.toString(), request);
+                message.toString(), champs, request);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -108,12 +112,19 @@ public class GlobalExceptionHandler {
 
     private ResponseEntity<ErrorResponse> construire(HttpStatus status, String error,
                                                       String message, HttpServletRequest request) {
+        return construire(status, error, message, null, request);
+    }
+
+    private ResponseEntity<ErrorResponse> construire(HttpStatus status, String error,
+                                                      String message, Map<String, String> champs,
+                                                      HttpServletRequest request) {
         ErrorResponse response = ErrorResponse.builder()
                 .timestamp(OffsetDateTime.now().toString())
                 .status(status.value())
                 .error(error)
                 .message(message)
                 .path(request.getRequestURI())
+                .champs(champs)
                 .build();
         return ResponseEntity.status(status).body(response);
     }

@@ -74,7 +74,11 @@ public class ObligationFiscaleController {
 
     @GetMapping("/echeances-proches")
     public List<ObligationResponse> echeancesProches(@RequestParam(defaultValue = "7") int jours) {
-        return identifierRetardsUseCase.echeancesProches(jours).stream().map(this::toResponse).toList();
+        String nifConnecte = UtilisateurConnecte.nifSiContribuable();
+        return identifierRetardsUseCase.echeancesProches(jours).stream()
+                .filter(o -> nifConnecte == null || nifConnecte.equals(o.getNif()))
+                .map(this::toResponse)
+                .toList();
     }
 
     @PostMapping("/generer")

@@ -73,6 +73,13 @@ public class DeclarationRepositoryAdapter implements DeclarationRepositoryPort {
     }
 
     @Override
+    public List<Declaration> findByNif(String nif) {
+        return jpaRepository.findByNif(nif).stream()
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public List<Declaration> findAll() {
         return jpaRepository.findAll().stream()
                 .map(mapper::toDomain)

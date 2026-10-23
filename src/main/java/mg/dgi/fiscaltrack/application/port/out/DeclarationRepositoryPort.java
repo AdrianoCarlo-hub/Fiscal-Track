@@ -28,6 +28,9 @@ public interface DeclarationRepositoryPort {
     Optional<Declaration> findDerniereDeclarationValideeAvantExercice(String nif, String codeImpot,
                                                                      int exercice);
 
+    /** Declarations d'un contribuable (via ses obligations), plus recentes d'abord. */
+    List<Declaration> findByNif(String nif);
+
     List<Declaration> findAll();
 
     Page<Declaration> findAll(Pageable pageable);

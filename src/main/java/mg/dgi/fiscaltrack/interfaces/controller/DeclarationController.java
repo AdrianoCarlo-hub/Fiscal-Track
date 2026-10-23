@@ -5,6 +5,7 @@ import mg.dgi.fiscaltrack.application.usecase.declaration.ConsulterDeclarationsU
 import mg.dgi.fiscaltrack.application.usecase.declaration.DeposerDeclarationUseCase;
 import mg.dgi.fiscaltrack.application.usecase.declaration.PrevisualiserDeclarationUseCase;
 import mg.dgi.fiscaltrack.application.usecase.declaration.VerifierDeclarationUseCase;
+import mg.dgi.fiscaltrack.application.usecase.obligation.ConsulterObligationsUseCase;
 import mg.dgi.fiscaltrack.domain.model.Declaration;
 import mg.dgi.fiscaltrack.interfaces.dto.request.DeclarationRequest;
 import mg.dgi.fiscaltrack.interfaces.dto.request.DeclarationRequestMapper;
@@ -30,15 +31,18 @@ public class DeclarationController {
     private final VerifierDeclarationUseCase verifierUseCase;
     private final ConsulterDeclarationsUseCase consulterUseCase;
     private final PrevisualiserDeclarationUseCase previsualiserUseCase;
+    private final ConsulterObligationsUseCase consulterObligationsUseCase;
 
     public DeclarationController(DeposerDeclarationUseCase deposerUseCase,
                                   VerifierDeclarationUseCase verifierUseCase,
                                   ConsulterDeclarationsUseCase consulterUseCase,
-                                  PrevisualiserDeclarationUseCase previsualiserUseCase) {
+                                  PrevisualiserDeclarationUseCase previsualiserUseCase,
+                                  ConsulterObligationsUseCase consulterObligationsUseCase) {
         this.deposerUseCase = deposerUseCase;
         this.verifierUseCase = verifierUseCase;
         this.consulterUseCase = consulterUseCase;
         this.previsualiserUseCase = previsualiserUseCase;
+        this.consulterObligationsUseCase = consulterObligationsUseCase;
     }
 
     @GetMapping
@@ -55,12 +59,22 @@ public class DeclarationController {
 
     @GetMapping("/{id}")
     public Map<String, Object> parId(@PathVariable Long id) {
-        return toMap(consulterUseCase.parId(id));
+        Declaration declaration = consulterUseCase.parId(id);
+        verifierProprieteDeclaration(declaration);
+        return toMap(declaration);
     }
 
     @GetMapping("/obligation/{idObligation}")
     public Map<String, Object> parObligation(@PathVariable Long idObligation) {
+        verifierProprieteObligation(idObligation);
         return toMap(consulterUseCase.parObligation(idObligation));
+    }
+
+    /** Toutes les declarations d'un contribuable (front-office). */
+    @GetMapping("/contribuable/{nif}")
+    public List<Map<String, Object>> parContribuable(@PathVariable String nif) {
+        UtilisateurConnecte.verifierPropriete(nif, "ces declarations");
+        return consulterUseCase.parContribuable(nif).stream().map(this::toMap).toList();
     }
 
     @GetMapping("/statut/{statut}")
@@ -113,15 +127,17 @@ public class DeclarationController {
      * (les agents consultent toutes les obligations).
      */
     private String nifCourant() {
-        org.springframework.security.core.Authentication auth =
-                org.springframework.security.core.context.SecurityContextHolder
-                        .getContext().getAuthentication();
-        if (auth == null) {
-            return null;
-        }
-        boolean estContribuable = auth.getAuthorities().stream()
-                .anyMatch(a -> "ROLE_CONTRIBUABLE".equals(a.getAuthority()));
-        return estContribuable ? auth.getName() : null;
+        return UtilisateurConnecte.nifSiContribuable();
+    }
+
+    private void verifierProprieteObligation(Long idObligation) {
+        UtilisateurConnecte.verifierPropriete(
+                consulterObligationsUseCase.parId(idObligation).getNif(),
+                "cette declaration");
+    }
+
+    private void verifierProprieteDeclaration(Declaration declaration) {
+        verifierProprieteObligation(declaration.getIdObligationFiscale());
     }
 
     /** Copie JSON des champs saisis, pour la tracabilite de la declaration. */

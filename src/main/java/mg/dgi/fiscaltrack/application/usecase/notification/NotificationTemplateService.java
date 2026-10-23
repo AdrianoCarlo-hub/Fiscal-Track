@@ -261,8 +261,38 @@ public class NotificationTemplateService {
         return d == null ? "" : DATE_COURTE.format(d);
     }
 
-    private String montant(BigDecimal m) {
-        return m.stripTrailingZeros().toPlainString() + " Ar";
+    /**
+     * Montant au format lisible : milliers separes par une espace et suffixe
+     * "Ar" (ex. 1 234 000 Ar). Les centimes ne sont affiches que s'ils sont
+     * non nuls.
+     */
+    static String montant(BigDecimal m) {
+        if (m == null) {
+            return "";
+        }
+        BigDecimal normalise = m.stripTrailingZeros();
+        String plain = normalise.abs().toPlainString();
+        int point = plain.indexOf('.');
+        String entier = point < 0 ? plain : plain.substring(0, point);
+        String decimales = point < 0 ? null : plain.substring(point + 1);
+        StringBuilder groupe = new StringBuilder();
+        int compte = 0;
+        for (int i = entier.length() - 1; i >= 0; i--) {
+            groupe.append(entier.charAt(i));
+            if (++compte % 3 == 0 && i > 0) {
+                groupe.append(' ');
+            }
+        }
+        StringBuilder resultat = new StringBuilder();
+        if (normalise.signum() < 0) {
+            resultat.append('-');
+        }
+        resultat.append(groupe.reverse());
+        if (decimales != null && !decimales.isEmpty()) {
+            String centimes = (decimales + "00").substring(0, 2);
+            resultat.append(',').append(centimes);
+        }
+        return resultat.append(" Ar").toString();
     }
 
     private String court(String valeur, int max) {

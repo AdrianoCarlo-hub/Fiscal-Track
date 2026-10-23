@@ -297,6 +297,7 @@ ALTER TABLE notifications ADD COLUMN IF NOT EXISTS derniere_tentative TIMESTAMP 
 ALTER TABLE notifications ADD COLUMN IF NOT EXISTS erreur_envoi TEXT;
 -- Texte SMS (160 caracteres max, translittere) conserve pour tracabilite/aperçu
 ALTER TABLE notifications ADD COLUMN IF NOT EXISTS message_sms TEXT;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS objet_email VARCHAR(255);
 -- Consultation portail (lu / non lu)
 ALTER TABLE notifications ADD COLUMN IF NOT EXISTS lu BOOLEAN NOT NULL DEFAULT FALSE;
 

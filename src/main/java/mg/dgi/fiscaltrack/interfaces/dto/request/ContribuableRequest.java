@@ -43,6 +43,8 @@ public class ContribuableRequest {
      * Obligatoire a la creation, facultatif a la modification (si absent, le
      * mot de passe existant est conserve).
      */
+    @Pattern(regexp = "^$|^.{8,72}$",
+            message = "Le mot de passe doit contenir entre 8 et 72 caractères")
     private String motDePasseHashContribuable;
 
     private String regimeImposition;

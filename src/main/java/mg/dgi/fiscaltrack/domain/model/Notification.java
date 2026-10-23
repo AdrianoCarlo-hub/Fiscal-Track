@@ -25,6 +25,7 @@ public class Notification {
     private String idAgent;
     private TypeRelance typeRelance;
     private String messageContenu;
+    private String objetEmail;
     /** Texte SMS genere (160 caracteres max, sans accent), conserve pour tracabilite. */
     private String messageSms;
     private OffsetDateTime dateEnvoiPrevue;

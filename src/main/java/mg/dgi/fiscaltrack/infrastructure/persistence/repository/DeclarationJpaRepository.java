@@ -19,6 +19,16 @@ public interface DeclarationJpaRepository extends JpaRepository<DeclarationEntit
 
     List<DeclarationEntity> findByStatutValidation(String statutValidation);
 
+    /** Toutes les declarations d'un contribuable, plus recentes d'abord. */
+    @Query("""
+            SELECT d FROM DeclarationEntity d
+            WHERE d.idObligationFiscale IN (
+                SELECT o.idObligationFiscale FROM ObligationFiscaleEntity o WHERE o.nif = :nif
+            )
+            ORDER BY d.dateSoumission DESC
+            """)
+    List<DeclarationEntity> findByNif(@Param("nif") String nif);
+
     /**
      * Derniere declaration deposee pour un NIF (via ses obligations).
      * Utilisee pour determiner le CA de reference de l'amende de defaut

@@ -46,6 +46,9 @@ public class NotificationEntity {
     @Column(name = "message_contenu", nullable = false, columnDefinition = "TEXT")
     private String messageContenu;
 
+    @Column(name = "objet_email")
+    private String objetEmail;
+
     @Column(name = "message_sms", columnDefinition = "TEXT")
     private String messageSms;
 

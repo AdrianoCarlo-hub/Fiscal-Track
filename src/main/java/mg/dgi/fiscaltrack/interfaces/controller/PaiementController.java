@@ -1,6 +1,7 @@
 package mg.dgi.fiscaltrack.interfaces.controller;
 
 import jakarta.validation.Valid;
+import mg.dgi.fiscaltrack.application.port.out.CompteCourantFiscalRepositoryPort;
 import mg.dgi.fiscaltrack.application.usecase.paiement.CalculerResteARecouvrerUseCase;
 import mg.dgi.fiscaltrack.application.usecase.paiement.ConsulterPaiementsUseCase;
 import mg.dgi.fiscaltrack.application.usecase.paiement.EnregistrerPaiementUseCase;
@@ -25,13 +26,16 @@ public class PaiementController {
     private final EnregistrerPaiementUseCase enregistrerUseCase;
     private final ConsulterPaiementsUseCase consulterUseCase;
     private final CalculerResteARecouvrerUseCase calculerResteUseCase;
+    private final CompteCourantFiscalRepositoryPort compteRepositoryPort;
 
     public PaiementController(EnregistrerPaiementUseCase enregistrerUseCase,
                                ConsulterPaiementsUseCase consulterUseCase,
-                               CalculerResteARecouvrerUseCase calculerResteUseCase) {
+                               CalculerResteARecouvrerUseCase calculerResteUseCase,
+                               CompteCourantFiscalRepositoryPort compteRepositoryPort) {
         this.enregistrerUseCase = enregistrerUseCase;
         this.consulterUseCase = consulterUseCase;
         this.calculerResteUseCase = calculerResteUseCase;
+        this.compteRepositoryPort = compteRepositoryPort;
     }
 
     @GetMapping
@@ -48,16 +52,20 @@ public class PaiementController {
 
     @GetMapping("/{id}")
     public Map<String, Object> parId(@PathVariable Long id) {
-        return toMap(consulterUseCase.parId(id));
+        var paiement = consulterUseCase.parId(id);
+        verifierProprieteCompte(paiement.getIdCompte());
+        return toMap(paiement);
     }
 
     @GetMapping("/compte/{idCompte}")
     public List<Map<String, Object>> parCompte(@PathVariable Long idCompte) {
+        verifierProprieteCompte(idCompte);
         return consulterUseCase.parCompte(idCompte).stream().map(this::toMap).toList();
     }
 
     @GetMapping("/compte/{idCompte}/reste")
     public Map<String, Object> resteARecouvrer(@PathVariable Long idCompte) {
+        verifierProprieteCompte(idCompte);
         BigDecimal reste = calculerResteUseCase.execute(idCompte);
         return Map.of(
                 "idCompte", idCompte,
@@ -74,6 +82,13 @@ public class PaiementController {
                 ModePaiement.valueOf(request.getModePaiement()),
                 request.getReferenceTransaction());
         return ResponseEntity.ok(toMap(paiement));
+    }
+
+    private void verifierProprieteCompte(Long idCompte) {
+        String nif = compteRepositoryPort.findById(idCompte)
+                .map(mg.dgi.fiscaltrack.domain.model.CompteCourantFiscal::getNif)
+                .orElse(null);
+        UtilisateurConnecte.verifierPropriete(nif, "ces paiements");
     }
 
     private Map<String, Object> toMap(Paiement p) {

@@ -114,6 +114,7 @@ public class CreerNotificationUseCase {
                 .nif(contexte.getNif())
                 .typeRelance(type)
                 .messageContenu(contenu.corpsEmail())
+                .objetEmail(contenu.sujet())
                 .messageSms(contenu.corpsSms())
                 .dateEnvoiPrevue(maintenant)
                 .canalEnvoi(canal)

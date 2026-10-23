@@ -9,7 +9,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Component;
 
@@ -36,17 +38,20 @@ public class EmailNotificationSenderAdapter implements NotificationSenderPort {
     private final boolean envoiReelActive;
     private final boolean smtpConfigure;
     private final String expediteur;
+    private final String urlPortail;
 
     public EmailNotificationSenderAdapter(ObjectProvider<JavaMailSender> mailSenderProvider,
                                           ContribuableRepositoryPort contribuableRepositoryPort,
                                           @Value("${NOTIFICATIONS_EMAIL_ENABLED:false}") boolean envoiReelActive,
                                           @Value("${spring.mail.host:}") String mailHost,
-                                          @Value("${MAIL_EXPEDITEUR:no-reply@fiscaltrack.mg}") String expediteur) {
+                                          @Value("${MAIL_EXPEDITEUR:no-reply@fiscaltrack.mg}") String expediteur,
+                                          @Value("${app.portal.url:http://localhost:5173}") String urlPortail) {
         this.mailSenderProvider = mailSenderProvider;
         this.contribuableRepositoryPort = contribuableRepositoryPort;
         this.envoiReelActive = envoiReelActive;
         this.smtpConfigure = mailHost != null && !mailHost.isBlank();
         this.expediteur = expediteur;
+        this.urlPortail = urlPortail;
     }
 
     @Override
@@ -55,7 +60,7 @@ public class EmailNotificationSenderAdapter implements NotificationSenderPort {
             logger.info("[NOTIFICATION][EMAIL][SIMULATION] Notification #{} NIF {} | Sujet: {}",
                     notification.getIdNotif(),
                     Masquage.masquerNif(notification.getNif()),
-                    premierLigne(notification));
+                    sujet(notification));
             return;
         }
 
@@ -71,31 +76,49 @@ public class EmailNotificationSenderAdapter implements NotificationSenderPort {
             throw new IllegalStateException("Service d'envoi d'e-mail indisponible");
         }
 
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(expediteur);
-        message.setTo(destinataire.get());
-        message.setSubject(sujet(notification));
-        message.setText(notification.getMessageContenu());
-        mailSender.send(message);
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(expediteur);
+            helper.setTo(destinataire.get());
+            helper.setSubject(sujet(notification));
+            helper.setText(notification.getMessageContenu(), corpsHtml(notification));
+            mailSender.send(message);
+        } catch (MessagingException e) {
+            throw new IllegalStateException("Construction de l'e-mail impossible", e);
+        }
 
         logger.info("[NOTIFICATION][EMAIL][REEL] Notification #{} envoyée",
                 notification.getIdNotif());
     }
 
     private String sujet(Notification notification) {
+        if (notification.getObjetEmail() != null && !notification.getObjetEmail().isBlank()) {
+            return notification.getObjetEmail();
+        }
         String type = notification.getTypeRelance() == null
                 ? "Notification"
                 : notification.getTypeRelance().getCode().replace('_', ' ');
         return "Fiscal-Track - " + type;
     }
 
-    private String premierLigne(Notification notification) {
-        String contenu = notification.getMessageContenu();
-        if (contenu == null) {
-            return "";
-        }
-        int retour = contenu.indexOf('\n');
-        return retour < 0 ? contenu : contenu.substring(0, retour);
+    /** Version HTML : corps en texte (lignes conservees) + bouton d'acces au portail. */
+    private String corpsHtml(Notification notification) {
+        String corps = notification.getMessageContenu() == null ? "" : notification.getMessageContenu();
+        String echappe = corps
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\n", "<br>");
+        return "<div style=\"font-family:Georgia,serif;color:#1E2761;max-width:600px\">"
+                + "<p>" + echappe + "</p>"
+                + "<p style=\"margin:28px 0\">"
+                + "<a href=\"" + urlPortail + "\" "
+                + "style=\"background:#1E2761;color:#FFFFFF;padding:12px 22px;border-radius:6px;"
+                + "text-decoration:none;font-family:Arial,sans-serif\">"
+                + "Accéder à mon espace</a></p>"
+                + "<p style=\"font-size:12px;color:#6B7280\">Fiscal-Track — Direction Générale des Impôts</p>"
+                + "</div>";
     }
 
     @Override
