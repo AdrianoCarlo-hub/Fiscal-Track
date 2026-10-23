@@ -39,7 +39,7 @@ class AcomptesApiIntegrationTest {
     void login() throws Exception {
         String corps = mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"identifiant\":\"NIF0000001\",\"motDePasse\":\"" + MDP + "\"}"))
+                        .content("{\"identifiant\":\"0000000001\",\"motDePasse\":\"" + MDP + "\"}"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         JsonNode json = objectMapper.readTree(corps);
@@ -49,7 +49,7 @@ class AcomptesApiIntegrationTest {
     @Test
     @DisplayName("Le contribuable consulte ses propres acomptes (200)")
     void contribuableConsulteSesAcomptes() throws Exception {
-        mockMvc.perform(get("/api/contribuables/NIF0000001/acomptes")
+        mockMvc.perform(get("/api/contribuables/0000000001/acomptes")
                         .param("exercice", "2026")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk());
@@ -58,7 +58,7 @@ class AcomptesApiIntegrationTest {
     @Test
     @DisplayName("Le contribuable ne peut pas lire les acomptes d'un autre NIF (403)")
     void contribuableNeConsultePasLesAcomptesDUnAutre() throws Exception {
-        mockMvc.perform(get("/api/contribuables/NIF9999999/acomptes")
+        mockMvc.perform(get("/api/contribuables/9999999999/acomptes")
                         .param("exercice", "2026")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isForbidden());

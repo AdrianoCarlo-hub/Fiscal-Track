@@ -163,6 +163,17 @@ class PreparerDonneesDeclarationUseCaseTest {
     }
 
     @Test
+    @DisplayName("IR : chiffre d'affaires HT inférieur à 400 000 000 Ar refusé")
+    void irCaSousLeSeuil() {
+        base("IR");
+        CalculFiscalInvalideException e = assertThrows(CalculFiscalInvalideException.class,
+                () -> useCase.execute(SaisieDeclaration.builder()
+                        .caHT(new BigDecimal("399999999"))
+                        .build(), "IR", "NIF0000001"));
+        assertTrue(e.getMessage().contains("400 000 000"));
+    }
+
+    @Test
     @DisplayName("IR : chiffre d'affaires HT obligatoire")
     void irSansCaHt() {
         base("IR");

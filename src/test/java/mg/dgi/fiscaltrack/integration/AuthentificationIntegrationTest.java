@@ -64,7 +64,7 @@ class AuthentificationIntegrationTest {
     void loginContribuable() throws Exception {
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(loginBody("NIF0000001", MDP)))
+                        .content(loginBody("0000000001", MDP)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").isNotEmpty())
                 .andExpect(jsonPath("$.role").value("CONTRIBUABLE"));
@@ -86,11 +86,11 @@ class AuthentificationIntegrationTest {
                 "INSERT INTO contribuables (nif, raison_sociale, mot_de_passe_hash_contribuable, "
                         + "statut_activite, date_immatriculation, created_at, updated_at) "
                         + "VALUES (?, ?, ?, ?, CURRENT_DATE, NOW(), NOW())",
-                "NIFRADIE01", "SOCIETE RADIEE", HASH_PASSWORD123, "RADIE");
+                "9000000001", "SOCIETE RADIEE", HASH_PASSWORD123, "RADIE");
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(loginBody("NIFRADIE01", MDP)))
+                        .content(loginBody("9000000001", MDP)))
                 .andExpect(status().isUnauthorized());
     }
 }

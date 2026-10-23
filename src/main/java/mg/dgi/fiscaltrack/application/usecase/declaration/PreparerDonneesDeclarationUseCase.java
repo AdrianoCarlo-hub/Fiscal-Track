@@ -42,6 +42,9 @@ public class PreparerDonneesDeclarationUseCase {
 
     public static final int MAX_SALARIES = 50;
 
+    /** Seuil minimum de chiffre d'affaires HT pour declarer l'IR. */
+    static final BigDecimal SEUIL_MINIMUM_CA_IR = new BigDecimal("400000000");
+
     private final ContribuableRepositoryPort contribuableRepositoryPort;
     private final ParametreFiscalService parametreFiscalService;
     private final AcomptesObligatoiresService acomptesObligatoiresService;
@@ -235,6 +238,10 @@ public class PreparerDonneesDeclarationUseCase {
         BigDecimal caHT = premierNonNul(s.getCaHT(), s.getChiffreAffairesDeclare());
         exigerPresent(caHT, "Le chiffre d'affaires HT (Ar)");
         exigerPositif(caHT, "Le chiffre d'affaires HT (Ar)");
+        if (caHT.compareTo(SEUIL_MINIMUM_CA_IR) < 0) {
+            throw new CalculFiscalInvalideException(
+                    "Le chiffre d'affaires HT doit être supérieur ou égal à 400 000 000 Ar pour déclarer l'IR");
+        }
         exigerPositif(s.getChargesDeductibles(), "Les charges deductibles (Ar)");
         exigerPositif(s.getReintegrations(), "Les reintegrations extra-comptables (Ar)");
         exigerPositif(s.getDeductions(), "Les deductions extra-comptables (Ar)");

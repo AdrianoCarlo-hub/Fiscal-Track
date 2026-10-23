@@ -44,8 +44,8 @@ public class AjouterContribuableUseCase {
      *               ou null si inconnu.
      */
     public Contribuable execute(Contribuable contribuable, String auteur) {
-        if (contribuable.getNif() == null || contribuable.getNif().length() != 10) {
-            throw new IllegalArgumentException("Le NIF doit contenir exactement 10 caracteres");
+        if (contribuable.getNif() == null || !contribuable.getNif().matches("^[0-9]{10}$")) {
+            throw new IllegalArgumentException("Le NIF doit contenir exactement 10 chiffres");
         }
         if (repositoryPort.existsByNif(contribuable.getNif())) {
             throw new IllegalArgumentException("Un contribuable avec ce NIF existe deja");

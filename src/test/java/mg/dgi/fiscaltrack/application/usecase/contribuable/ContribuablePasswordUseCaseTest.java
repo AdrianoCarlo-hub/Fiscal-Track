@@ -50,7 +50,7 @@ class ContribuablePasswordUseCaseTest {
 
     private Contribuable contribuableAvecMotDePasse(String motDePasse) {
         return Contribuable.builder()
-                .nif("NIF0000009")
+                .nif("0000000009")
                 .raisonSociale("TEST SARL")
                 .motDePasseHashContribuable(motDePasse)
                 .statutActivite(StatutActivite.ACTIF)
@@ -71,11 +71,26 @@ class ContribuablePasswordUseCaseTest {
     @DisplayName("Un contribuable cree peut s'authentifier (le hash correspond)")
     void contribuableCreePeutSeConnecter() {
         Contribuable saved = ajouterUseCase.execute(contribuableAvecMotDePasse("password123"));
-        when(repositoryPort.findByNif("NIF0000009")).thenReturn(Optional.of(saved));
+        when(repositoryPort.findByNif("0000000009")).thenReturn(Optional.of(saved));
 
-        Contribuable authentifie = authentifierUseCase.execute("NIF0000009", "password123");
+        Contribuable authentifie = authentifierUseCase.execute("0000000009", "password123");
 
-        assertEquals("NIF0000009", authentifie.getNif());
+        assertEquals("0000000009", authentifie.getNif());
+    }
+
+    @Test
+    @DisplayName("Creation avec un NIF non numerique : rejet")
+    void creationAvecNifNonNumeriqueRejetee() {
+        Contribuable contribuable = Contribuable.builder()
+                .nif("NIF0000009")
+                .raisonSociale("TEST SARL")
+                .motDePasseHashContribuable("password123")
+                .statutActivite(StatutActivite.ACTIF)
+                .build();
+
+        IllegalArgumentException erreur = assertThrows(IllegalArgumentException.class,
+                () -> ajouterUseCase.execute(contribuable));
+        assertEquals("Le NIF doit contenir exactement 10 chiffres", erreur.getMessage());
     }
 
     @Test
@@ -93,12 +108,12 @@ class ContribuablePasswordUseCaseTest {
         Contribuable existant = contribuableAvecMotDePasse("password123");
         existant.setMotDePasseHashContribuable(passwordEncoder.encode("password123"));
         String ancienHash = existant.getMotDePasseHashContribuable();
-        when(repositoryPort.findByNif("NIF0000009")).thenReturn(Optional.of(existant));
+        when(repositoryPort.findByNif("0000000009")).thenReturn(Optional.of(existant));
 
         Contribuable donnees = Contribuable.builder()
                 .motDePasseHashContribuable("nouveauSecret")
                 .build();
-        Contribuable saved = modifierUseCase.execute("NIF0000009", donnees);
+        Contribuable saved = modifierUseCase.execute("0000000009", donnees);
 
         assertNotEquals(ancienHash, saved.getMotDePasseHashContribuable());
         assertTrue(passwordEncoder.matches("nouveauSecret", saved.getMotDePasseHashContribuable()));
@@ -111,10 +126,10 @@ class ContribuablePasswordUseCaseTest {
         Contribuable existant = contribuableAvecMotDePasse("password123");
         existant.setMotDePasseHashContribuable(passwordEncoder.encode("password123"));
         String ancienHash = existant.getMotDePasseHashContribuable();
-        when(repositoryPort.findByNif("NIF0000009")).thenReturn(Optional.of(existant));
+        when(repositoryPort.findByNif("0000000009")).thenReturn(Optional.of(existant));
 
         Contribuable donnees = Contribuable.builder().raisonSociale("NOUVELLE RAISON").build();
-        Contribuable saved = modifierUseCase.execute("NIF0000009", donnees);
+        Contribuable saved = modifierUseCase.execute("0000000009", donnees);
 
         assertEquals(ancienHash, saved.getMotDePasseHashContribuable());
         assertEquals("NOUVELLE RAISON", saved.getRaisonSociale());

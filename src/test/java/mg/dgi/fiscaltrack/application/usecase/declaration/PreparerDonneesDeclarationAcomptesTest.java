@@ -92,7 +92,7 @@ class PreparerDonneesDeclarationAcomptesTest {
 
         PreparerDonneesDeclarationUseCase.DonneesDeclaration donnees = useCase.execute(
                 SaisieDeclaration.builder()
-                        .caHT(new BigDecimal("50000000"))
+                        .caHT(new BigDecimal("500000000"))
                         .acomptes(new BigDecimal("50000000"))
                         .build(),
                 obligation("IR", "2025"));
@@ -131,7 +131,7 @@ class PreparerDonneesDeclarationAcomptesTest {
     void irDouaneNegativeRefusee() {
         CalculFiscalInvalideException e = assertThrows(CalculFiscalInvalideException.class,
                 () -> useCase.execute(SaisieDeclaration.builder()
-                        .caHT(new BigDecimal("50000000"))
+                        .caHT(new BigDecimal("500000000"))
                         .acomptesDouane(new BigDecimal("-100"))
                         .build(), obligation("IR", "2025")));
 
