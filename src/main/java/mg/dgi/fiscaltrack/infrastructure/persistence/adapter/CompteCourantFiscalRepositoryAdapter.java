@@ -1,5 +1,7 @@
 package mg.dgi.fiscaltrack.infrastructure.persistence.adapter;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import mg.dgi.fiscaltrack.application.port.out.CompteCourantFiscalRepositoryPort;
 import mg.dgi.fiscaltrack.domain.model.CompteCourantFiscal;
 import mg.dgi.fiscaltrack.infrastructure.persistence.mapper.CompteCourantFiscalMapper;
@@ -18,6 +20,9 @@ public class CompteCourantFiscalRepositoryAdapter implements CompteCourantFiscal
     private final CompteCourantFiscalJpaRepository jpaRepository;
     private final CompteCourantFiscalMapper mapper;
 
+    @PersistenceContext
+    private EntityManager entityManager;
+
     public CompteCourantFiscalRepositoryAdapter(CompteCourantFiscalJpaRepository jpaRepository,
                                                  CompteCourantFiscalMapper mapper) {
         this.jpaRepository = jpaRepository;
@@ -31,7 +36,13 @@ public class CompteCourantFiscalRepositoryAdapter implements CompteCourantFiscal
         }
         compteCourantFiscal.setUpdatedAt(OffsetDateTime.now());
         var entity = mapper.toEntity(compteCourantFiscal);
-        return mapper.toDomain(jpaRepository.save(entity));
+        // saveAndFlush + refresh : force le flush puis relit la ligne pour peupler
+        // les colonnes generees cote PostgreSQL (montant_total_du, reste_a_recouvrer).
+        // Sans refresh, une entite deja presente dans le contexte de persistance
+        // conserve des valeurs nulles pour ces colonnes (@Generated).
+        var saved = jpaRepository.saveAndFlush(entity);
+        entityManager.refresh(saved);
+        return mapper.toDomain(saved);
     }
 
     @Override
@@ -82,6 +93,13 @@ public class CompteCourantFiscalRepositoryAdapter implements CompteCourantFiscal
         return jpaRepository.findEligiblesTitrePerception(seuilEcheance).stream()
                 .map(mapper::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public java.math.BigDecimal sommeMontantPayeAcomptes(String nif, String codeImpotAcompte, int exercice) {
+        java.math.BigDecimal somme = jpaRepository.sommeMontantPayeAcomptes(
+                nif, codeImpotAcompte, exercice + "-%");
+        return somme == null ? java.math.BigDecimal.ZERO : somme;
     }
 
     @Override

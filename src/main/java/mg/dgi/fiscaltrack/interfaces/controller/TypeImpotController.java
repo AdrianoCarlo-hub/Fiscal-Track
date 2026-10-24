@@ -43,15 +43,19 @@ public class TypeImpotController {
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Map<String, Object>> ajouter(@Valid @RequestBody TypeImpotRequest request) {
-        return ResponseEntity.ok(toMap(ajouterUseCase.execute(toDomain(request))));
+    public ResponseEntity<Map<String, Object>> ajouter(@Valid @RequestBody TypeImpotRequest request,
+                                                       java.security.Principal principal) {
+        String auteur = principal == null ? null : principal.getName();
+        return ResponseEntity.ok(toMap(ajouterUseCase.execute(toDomain(request), auteur)));
     }
 
     @PutMapping("/{codeImpot}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, Object>> modifier(@PathVariable String codeImpot,
-                                                         @Valid @RequestBody TypeImpotRequest request) {
-        return ResponseEntity.ok(toMap(modifierUseCase.execute(codeImpot, toDomain(request))));
+                                                         @Valid @RequestBody TypeImpotRequest request,
+                                                         java.security.Principal principal) {
+        String auteur = principal == null ? null : principal.getName();
+        return ResponseEntity.ok(toMap(modifierUseCase.execute(codeImpot, toDomain(request), auteur)));
     }
 
     private TypeImpot toDomain(TypeImpotRequest r) {

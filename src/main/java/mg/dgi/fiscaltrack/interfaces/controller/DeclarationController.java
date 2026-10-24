@@ -3,9 +3,14 @@ package mg.dgi.fiscaltrack.interfaces.controller;
 import jakarta.validation.Valid;
 import mg.dgi.fiscaltrack.application.usecase.declaration.ConsulterDeclarationsUseCase;
 import mg.dgi.fiscaltrack.application.usecase.declaration.DeposerDeclarationUseCase;
+import mg.dgi.fiscaltrack.application.usecase.declaration.PrevisualiserDeclarationUseCase;
 import mg.dgi.fiscaltrack.application.usecase.declaration.VerifierDeclarationUseCase;
+import mg.dgi.fiscaltrack.application.usecase.obligation.ConsulterObligationsUseCase;
 import mg.dgi.fiscaltrack.domain.model.Declaration;
 import mg.dgi.fiscaltrack.interfaces.dto.request.DeclarationRequest;
+import mg.dgi.fiscaltrack.interfaces.dto.request.DeclarationRequestMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -20,16 +25,24 @@ import java.util.Map;
 @RequestMapping("/api/declarations")
 public class DeclarationController {
 
+    private static final Logger logger = LoggerFactory.getLogger(DeclarationController.class);
+
     private final DeposerDeclarationUseCase deposerUseCase;
     private final VerifierDeclarationUseCase verifierUseCase;
     private final ConsulterDeclarationsUseCase consulterUseCase;
+    private final PrevisualiserDeclarationUseCase previsualiserUseCase;
+    private final ConsulterObligationsUseCase consulterObligationsUseCase;
 
     public DeclarationController(DeposerDeclarationUseCase deposerUseCase,
                                   VerifierDeclarationUseCase verifierUseCase,
-                                  ConsulterDeclarationsUseCase consulterUseCase) {
+                                  ConsulterDeclarationsUseCase consulterUseCase,
+                                  PrevisualiserDeclarationUseCase previsualiserUseCase,
+                                  ConsulterObligationsUseCase consulterObligationsUseCase) {
         this.deposerUseCase = deposerUseCase;
         this.verifierUseCase = verifierUseCase;
         this.consulterUseCase = consulterUseCase;
+        this.previsualiserUseCase = previsualiserUseCase;
+        this.consulterObligationsUseCase = consulterObligationsUseCase;
     }
 
     @GetMapping
@@ -46,12 +59,22 @@ public class DeclarationController {
 
     @GetMapping("/{id}")
     public Map<String, Object> parId(@PathVariable Long id) {
-        return toMap(consulterUseCase.parId(id));
+        Declaration declaration = consulterUseCase.parId(id);
+        verifierProprieteDeclaration(declaration);
+        return toMap(declaration);
     }
 
     @GetMapping("/obligation/{idObligation}")
     public Map<String, Object> parObligation(@PathVariable Long idObligation) {
+        verifierProprieteObligation(idObligation);
         return toMap(consulterUseCase.parObligation(idObligation));
+    }
+
+    /** Toutes les declarations d'un contribuable (front-office). */
+    @GetMapping("/contribuable/{nif}")
+    public List<Map<String, Object>> parContribuable(@PathVariable String nif) {
+        UtilisateurConnecte.verifierPropriete(nif, "ces declarations");
+        return consulterUseCase.parContribuable(nif).stream().map(this::toMap).toList();
     }
 
     @GetMapping("/statut/{statut}")
@@ -60,12 +83,24 @@ public class DeclarationController {
         return consulterUseCase.parStatutValidation(statut).stream().map(this::toMap).toList();
     }
 
+    /**
+     * Previsualise l'impot calcule par le serveur pour une obligation donnee
+     * (BLOC 4.7 : le champ n'est plus libre, le serveur impose son montant).
+     * Le formulaire envoye est celui adapte au type d'impot ; le calcul
+     * reste assure par les calculateurs existants. Ne persiste rien.
+     */
+    @PostMapping("/preview")
+    public Map<String, Object> previsualiser(@Valid @RequestBody DeclarationRequest request) {
+        return previsualiserUseCase.previsualiser(
+                DeclarationRequestMapper.toDomain(request), nifCourant());
+    }
+
     @PostMapping
     public ResponseEntity<Map<String, Object>> deposer(@Valid @RequestBody DeclarationRequest request) {
-        Declaration declaration = deposerUseCase.execute(
-                request.getIdObligationFiscale(),
-                request.getChiffreAffairesDeclare(),
-                request.getImpotPrincipalCalcule());
+        Declaration declaration = deposerUseCase.deposer(
+                DeclarationRequestMapper.toDomain(request),
+                serialiser(request),
+                nifCourant());
         return ResponseEntity.ok(toMap(declaration));
     }
 
@@ -75,20 +110,59 @@ public class DeclarationController {
         return ResponseEntity.ok(toMap(verifierUseCase.valider(id)));
     }
 
+    /**
+     * Rejet d'une declaration : le motif (corps JSON {\"motif\": \"...\"})
+     * est obligatoire et affiche au contribuable.
+     */
     @PutMapping("/{id}/rejeter")
     @PreAuthorize("hasAnyRole('AGENT_GESTION','RESPONSABLE','ADMIN')")
-    public ResponseEntity<Map<String, Object>> rejeter(@PathVariable Long id) {
-        return ResponseEntity.ok(toMap(verifierUseCase.rejeter(id)));
+    public ResponseEntity<Map<String, Object>> rejeter(@PathVariable Long id,
+                                                       @RequestBody Map<String, String> corps) {
+        return ResponseEntity.ok(toMap(verifierUseCase.rejeter(
+                id, corps == null ? null : corps.get("motif"))));
+    }
+
+    /**
+     * NIF de l'utilisateur connecte si c'est un contribuable, sinon null
+     * (les agents consultent toutes les obligations).
+     */
+    private String nifCourant() {
+        return UtilisateurConnecte.nifSiContribuable();
+    }
+
+    private void verifierProprieteObligation(Long idObligation) {
+        UtilisateurConnecte.verifierPropriete(
+                consulterObligationsUseCase.parId(idObligation).getNif(),
+                "cette declaration");
+    }
+
+    private void verifierProprieteDeclaration(Declaration declaration) {
+        verifierProprieteObligation(declaration.getIdObligationFiscale());
+    }
+
+    /** Copie JSON des champs saisis, pour la tracabilite de la declaration. */
+    private String serialiser(DeclarationRequest request) {
+        try {
+            return new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(request);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            logger.warn("[DECLARATION] Serialisation des donnees saisies impossible : {}",
+                    e.getMessage());
+            return null;
+        }
     }
 
     private Map<String, Object> toMap(Declaration d) {
-        return Map.of(
-                "idDeclaration", d.getIdDeclaration(),
-                "idObligationFiscale", d.getIdObligationFiscale(),
-                "chiffreAffairesDeclare", d.getChiffreAffairesDeclare(),
-                "impotPrincipalCalcule", d.getImpotPrincipalCalcule(),
-                "dateSoumission", d.getDateSoumission().toString(),
-                "statutValidation", d.getStatutValidation().name()
-        );
+        java.util.Map<String, Object> map = new java.util.LinkedHashMap<>();
+        map.put("idDeclaration", d.getIdDeclaration());
+        map.put("idObligationFiscale", d.getIdObligationFiscale());
+        map.put("chiffreAffairesDeclare", d.getChiffreAffairesDeclare());
+        map.put("impotPrincipalCalcule", d.getImpotPrincipalCalcule());
+        map.put("dateSoumission", d.getDateSoumission().toString());
+        map.put("statutValidation", d.getStatutValidation().name());
+        map.put("detailCalcul", d.getDetailCalcul());
+        map.put("creditFiscal", d.getCreditFiscal());
+        map.put("creditUtilise", d.getCreditUtilise());
+        map.put("motifRejet", d.getMotifRejet());
+        return map;
     }
 }

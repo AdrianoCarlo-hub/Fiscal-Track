@@ -40,23 +40,25 @@ public class AuthController {
      */
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        // Tentative cote agent (email)
-        var agentOpt = tryAuthentifierAgent(request.getIdentifiant(), request.getMotDePasse());
-        if (agentOpt != null) {
+        // Un identifiant agent est un email (contient '@') ; sinon c'est un NIF
+        // contribuable. On ne bascule PAS d'un type a l'autre en cas d'echec :
+        // un mauvais mot de passe doit renvoyer 401 (et non 404 contribuable).
+        if (request.getIdentifiant() != null && request.getIdentifiant().contains("@")) {
+            AgentFiscal agent = authentifierAgentUseCase.execute(
+                    request.getIdentifiant(), request.getMotDePasse());
             String token = jwtService.genererToken(
-                    agentOpt.getIdAgent(),
-                    agentOpt.getRoleSecurite().name(),
+                    agent.getIdAgent(),
+                    agent.getRoleSecurite().name(),
                     "AGENT");
             return ResponseEntity.ok(LoginResponse.builder()
                     .token(token)
                     .type("Bearer")
-                    .identifiant(agentOpt.getIdAgent())
-                    .role(agentOpt.getRoleSecurite().name())
+                    .identifiant(agent.getIdAgent())
+                    .role(agent.getRoleSecurite().name())
                     .expirationMs(expirationMs)
                     .build());
         }
 
-        // Sinon cote contribuable (NIF)
         Contribuable contribuable = authentifierContribuableUseCase.execute(
                 request.getIdentifiant(), request.getMotDePasse());
         String token = jwtService.genererToken(
@@ -70,16 +72,5 @@ public class AuthController {
                 .role("CONTRIBUABLE")
                 .expirationMs(expirationMs)
                 .build());
-    }
-
-    private AgentFiscal tryAuthentifierAgent(String identifiant, String motDePasse) {
-        if (!identifiant.contains("@")) {
-            return null;
-        }
-        try {
-            return authentifierAgentUseCase.execute(identifiant, motDePasse);
-        } catch (Exception e) {
-            return null;
-        }
     }
 }

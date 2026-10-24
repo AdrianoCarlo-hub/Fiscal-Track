@@ -15,6 +15,22 @@ public interface DeclarationRepositoryPort {
 
     Optional<Declaration> findByIdObligationFiscale(Long idObligationFiscale);
 
+    /** Derniere declaration deposee pour un NIF (via ses obligations). */
+    Optional<Declaration> findDerniereDeclarationByNif(String nif);
+
+    /** Derniere declaration d'un impot donne pour un NIF (via ses obligations). */
+    Optional<Declaration> findDerniereDeclarationByNifEtImpot(String nif, String codeImpot);
+
+    /**
+     * Derniere declaration VALIDEE d'un impot dont l'exercice est strictement
+     * anterieur a {@code exercice} (base des acomptes obligatoires).
+     */
+    Optional<Declaration> findDerniereDeclarationValideeAvantExercice(String nif, String codeImpot,
+                                                                     int exercice);
+
+    /** Declarations d'un contribuable (via ses obligations), plus recentes d'abord. */
+    List<Declaration> findByNif(String nif);
+
     List<Declaration> findAll();
 
     Page<Declaration> findAll(Pageable pageable);

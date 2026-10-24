@@ -25,10 +25,10 @@ public class DashboardController {
     }
 
     /**
-     * KPI globaux du tableau de bord (Direction, Responsable, Admin).
+     * KPI globaux du tableau de bord (Responsable, Admin).
      */
     @GetMapping("/indicateurs")
-    @PreAuthorize("hasAnyRole('RESPONSABLE','ADMIN','DIRECTEUR')")
+    @PreAuthorize("hasAnyRole('RESPONSABLE','ADMIN')")
     public Map<String, Object> indicateurs() {
         return obtenirIndicateursUseCase.execute();
     }
@@ -37,7 +37,7 @@ public class DashboardController {
      * Top 10 des plus gros restes a recouvrer.
      */
     @GetMapping("/top10-restes")
-    @PreAuthorize("hasAnyRole('RESPONSABLE','AGENT_RECETTE','ADMIN','DIRECTEUR')")
+    @PreAuthorize("hasAnyRole('RESPONSABLE','AGENT_RECETTE','ADMIN')")
     public List<Map<String, Object>> top10Restes() {
         return genererRapportUseCase.top10RestesARecouvrer().stream()
                 .map(this::toMap)

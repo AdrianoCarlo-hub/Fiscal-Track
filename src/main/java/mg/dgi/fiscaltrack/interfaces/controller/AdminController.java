@@ -1,6 +1,10 @@
 package mg.dgi.fiscaltrack.interfaces.controller;
 
 import mg.dgi.fiscaltrack.application.usecase.admin.GererJoursFeriesUseCase;
+import mg.dgi.fiscaltrack.application.usecase.notification.ContenuMessage;
+import mg.dgi.fiscaltrack.application.usecase.notification.ContexteNotification;
+import mg.dgi.fiscaltrack.application.usecase.notification.NotificationTemplateService;
+import mg.dgi.fiscaltrack.domain.enums.TypeRelance;
 import mg.dgi.fiscaltrack.application.usecase.admin.GererUtilisateursUseCase;
 import mg.dgi.fiscaltrack.domain.enums.Division;
 import mg.dgi.fiscaltrack.domain.enums.RoleSecurite;
@@ -10,7 +14,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -21,11 +28,59 @@ public class AdminController {
 
     private final GererUtilisateursUseCase utilisateursUseCase;
     private final GererJoursFeriesUseCase joursFeriesUseCase;
+    private final NotificationTemplateService templateService;
 
     public AdminController(GererUtilisateursUseCase utilisateursUseCase,
-                            GererJoursFeriesUseCase joursFeriesUseCase) {
+                            GererJoursFeriesUseCase joursFeriesUseCase,
+                            NotificationTemplateService templateService) {
         this.utilisateursUseCase = utilisateursUseCase;
         this.joursFeriesUseCase = joursFeriesUseCase;
+        this.templateService = templateService;
+    }
+
+    // ===================== MODELES DE NOTIFICATION =====================
+
+    /**
+     * Apercu en lecture seule des modeles e-mail, SMS et portail.
+     * Les textes sont rendus avec des donnees d'exemple ; aucun envoi.
+     */
+    @GetMapping("/modeles-notifications")
+    public List<Map<String, Object>> modelesNotifications() {
+        ContexteNotification exemple = ContexteNotification.builder()
+                .nif("1234567890")
+                .raisonSociale("SARL Exemple")
+                .codeImpot("IR")
+                .nomImpot("Impôt sur les Revenus")
+                .periode("2026")
+                .echeance(LocalDate.of(2026, 5, 15))
+                .montantDu(new BigDecimal("1234000"))
+                .montantPaye(new BigDecimal("500000"))
+                .montantRetenu(new BigDecimal("1234000"))
+                .reference("TXN-2026-0001")
+                .motif("Pièce justificative manquante")
+                .nature("Retard de dépôt")
+                .montant(new BigDecimal("50000"))
+                .messageLibre("Votre dossier a bien été mis à jour.")
+                .build();
+
+        List<Map<String, Object>> modeles = new ArrayList<>();
+        for (TypeRelance type : TypeRelance.values()) {
+            ContenuMessage contenu = templateService.construire(type, exemple);
+            modeles.add(modele(type, "EMAIL", contenu.sujet(), contenu.corpsEmail()));
+            modeles.add(modele(type, "SMS", "", contenu.corpsSms()));
+            modeles.add(modele(type, "PORTAIL", contenu.sujet(), contenu.corpsEmail()));
+        }
+        return modeles;
+    }
+
+    private Map<String, Object> modele(TypeRelance type, String canal, String objet, String corps) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("typeRelance", type.getCode());
+        map.put("canal", canal);
+        map.put("objet", objet);
+        map.put("corps", corps);
+        map.put("longueurCaracteres", corps == null ? 0 : corps.length());
+        return map;
     }
 
     // ===================== UTILISATEURS =====================
@@ -41,7 +96,8 @@ public class AdminController {
     }
 
     @PostMapping("/utilisateurs")
-    public ResponseEntity<Map<String, Object>> ajouterAgent(@RequestBody Map<String, String> request) {
+    public ResponseEntity<Map<String, Object>> ajouterAgent(@RequestBody Map<String, String> request,
+                                                            java.security.Principal principal) {
         AgentFiscal agent = AgentFiscal.builder()
                 .idAgent(request.get("idAgent"))
                 .nomAgent(request.get("nomAgent"))
@@ -52,13 +108,54 @@ public class AdminController {
                 .division(Division.valueOf(request.get("division")))
                 .roleSecurite(RoleSecurite.valueOf(request.get("roleSecurite")))
                 .build();
-        return ResponseEntity.ok(toAgentMap(utilisateursUseCase.ajouter(agent)));
+        String auteur = principal == null ? null : principal.getName();
+        return ResponseEntity.ok(toAgentMap(utilisateursUseCase.ajouter(agent, auteur)));
+    }
+
+    @PutMapping("/utilisateurs/{id}")
+    public ResponseEntity<Map<String, Object>> modifierAgent(@PathVariable String id,
+                                                             @RequestBody Map<String, String> request,
+                                                             java.security.Principal principal) {
+        AgentFiscal donnees = AgentFiscal.builder()
+                .nomAgent(request.get("nomAgent"))
+                .prenomAgent(request.get("prenomAgent"))
+                .emailAgent(request.get("emailAgent"))
+                .telephoneAgent(request.get("telephoneAgent"))
+                .motDePasseHashAgent(request.get("motDePasseHashAgent"))
+                .division(parseDivision(request.get("division")))
+                .roleSecurite(parseRole(request.get("roleSecurite")))
+                .build();
+        String auteur = principal == null ? null : principal.getName();
+        return ResponseEntity.ok(toAgentMap(utilisateursUseCase.modifier(id, donnees, auteur)));
     }
 
     @DeleteMapping("/utilisateurs/{id}")
-    public ResponseEntity<Void> supprimerAgent(@PathVariable String id) {
-        utilisateursUseCase.supprimer(id);
+    public ResponseEntity<Void> supprimerAgent(@PathVariable String id,
+                                               java.security.Principal principal) {
+        utilisateursUseCase.supprimer(id, principal == null ? null : principal.getName());
         return ResponseEntity.noContent().build();
+    }
+
+    private Division parseDivision(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return Division.valueOf(value);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private RoleSecurite parseRole(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return RoleSecurite.valueOf(value);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     // ===================== JOURS FERIES =====================

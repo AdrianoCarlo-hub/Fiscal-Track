@@ -41,7 +41,7 @@ public class AuthentifierContribuableUseCase {
 
         if (contribuable.getStatutActivite() == StatutActivite.RADIE) {
             throw new AccesNonAutoriseException(
-                    "Ce compte a ete radie, connexion impossible");
+                    "Ce compte n'esxiste pas , connexion impossible");
         }
 
         return contribuable;

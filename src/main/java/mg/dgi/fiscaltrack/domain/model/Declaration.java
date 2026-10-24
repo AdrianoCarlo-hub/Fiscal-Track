@@ -47,9 +47,18 @@ public class Declaration {
     /** Credit fiscal genere. */
     private BigDecimal creditFiscal;
 
+    /** Part du credit fiscal anterieur imputee sur cette declaration (R7). */
+    private BigDecimal creditUtilise;
+
     /** Categorie d'activite (pour IR et IS). */
     private CategorieActivite categorieActivite;
 
     /** Detail du calcul (texte lisible). */
     private String detailCalcul;
+
+    /** Donnees saisies par le contribuable (JSON) — tracabilite. */
+    private String donneesSaisies;
+
+    /** Motif du rejet par l'agent, visible du contribuable. */
+    private String motifRejet;
 }

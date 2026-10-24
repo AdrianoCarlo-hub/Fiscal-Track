@@ -29,6 +29,10 @@ public class ConsulterDeclarationsUseCase {
                         "Aucune declaration pour l'obligation : " + idObligation));
     }
 
+    public List<Declaration> parContribuable(String nif) {
+        return repositoryPort.findByNif(nif);
+    }
+
     public List<Declaration> toutes() {
         return repositoryPort.findAll();
     }

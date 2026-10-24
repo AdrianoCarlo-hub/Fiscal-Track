@@ -17,4 +17,7 @@ public class CalculIsRequest {
     private BigDecimal achatsConformes;
     private BigDecimal chargesSalariales;
     private BigDecimal acomptes;
+
+    /** Categorie d'activite, pour appliquer le minimum d'imposition IS. */
+    private String categorieActivite;
 }

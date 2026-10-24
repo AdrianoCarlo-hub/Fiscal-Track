@@ -29,11 +29,13 @@ public class CompteCourantFiscalController {
         CompteCourantFiscal compte = compteRepositoryPort.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Compte introuvable : " + id));
+        UtilisateurConnecte.verifierPropriete(compte.getNif(), "ce compte courant fiscal");
         return toMap(compte);
     }
 
     @GetMapping("/contribuable/{nif}")
     public List<Map<String, Object>> parContribuable(@PathVariable String nif) {
+        UtilisateurConnecte.verifierPropriete(nif, "ces comptes courants fiscaux");
         return compteRepositoryPort.findByNif(nif).stream().map(this::toMap).toList();
     }
 

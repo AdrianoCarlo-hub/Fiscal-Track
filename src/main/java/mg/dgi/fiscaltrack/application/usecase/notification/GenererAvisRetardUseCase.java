@@ -1,17 +1,14 @@
 package mg.dgi.fiscaltrack.application.usecase.notification;
 
-import mg.dgi.fiscaltrack.application.port.out.NotificationRepositoryPort;
 import mg.dgi.fiscaltrack.application.port.out.ObligationFiscaleRepositoryPort;
-import mg.dgi.fiscaltrack.domain.enums.CanalEnvoi;
 import mg.dgi.fiscaltrack.domain.enums.StatutDeclaration;
-import mg.dgi.fiscaltrack.domain.enums.StatutEnvoi;
 import mg.dgi.fiscaltrack.domain.enums.TypeRelance;
 import mg.dgi.fiscaltrack.domain.model.Notification;
 import mg.dgi.fiscaltrack.domain.model.ObligationFiscale;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,20 +16,28 @@ import java.util.List;
 public class GenererAvisRetardUseCase {
 
     private final ObligationFiscaleRepositoryPort obligationRepositoryPort;
-    private final NotificationRepositoryPort notificationRepositoryPort;
+    private final ContexteObligationService contexteObligationService;
+    private final CreerNotificationUseCase creerNotificationUseCase;
+    private final Clock clock;
 
     public GenererAvisRetardUseCase(ObligationFiscaleRepositoryPort obligationRepositoryPort,
-                                      NotificationRepositoryPort notificationRepositoryPort) {
+                                    ContexteObligationService contexteObligationService,
+                                    CreerNotificationUseCase creerNotificationUseCase,
+                                    Clock clock) {
         this.obligationRepositoryPort = obligationRepositoryPort;
-        this.notificationRepositoryPort = notificationRepositoryPort;
+        this.contexteObligationService = contexteObligationService;
+        this.creerNotificationUseCase = creerNotificationUseCase;
+        this.clock = clock;
     }
 
     /**
      * Genere les avis de retard J+1 : obligations dont la date limite reelle
-     * est depassee depuis exactement 1 jour.
+     * est depassee depuis exactement 1 jour (date locale du fuseau de
+     * l'application). L'avis est un avis legal : toujours publie sur le
+     * portail, en plus des canaux disponibles.
      */
     public List<Notification> execute() {
-        LocalDate cible = LocalDate.now().minusDays(1);
+        LocalDate cible = LocalDate.now(clock).minusDays(1);
         List<ObligationFiscale> obligations = obligationRepositoryPort.findAll().stream()
                 .filter(o -> o.getStatutDeclaration() == StatutDeclaration.RETARD)
                 .filter(o -> cible.equals(o.getDateLimiteReelle()))
@@ -40,21 +45,9 @@ public class GenererAvisRetardUseCase {
 
         List<Notification> notifications = new ArrayList<>();
         for (ObligationFiscale o : obligations) {
-            String message = String.format(
-                    "Avis de retard : votre obligation %s pour la periode %s n'a pas ete deposee. Echeance depassee le %s.",
-                    o.getCodeImpot(), o.getPeriodeFiscale(), o.getDateLimiteReelle());
-
-            Notification notification = Notification.builder()
-                    .idObligationFiscale(o.getIdObligationFiscale())
-                    .nif(o.getNif())
-                    .typeRelance(TypeRelance.J_PLUS_1)
-                    .messageContenu(message)
-                    .dateEnvoiPrevue(OffsetDateTime.now())
-                    .canalEnvoi(CanalEnvoi.EMAIL)
-                    .statutEnvoi(StatutEnvoi.EN_ATTENTE)
-                    .build();
-
-            notifications.add(notificationRepositoryPort.save(notification));
+            ContexteNotification contexte = contexteObligationService.depuis(o);
+            notifications.addAll(creerNotificationUseCase.creerAutomatique(
+                    TypeRelance.J_PLUS_1, contexte, o.getIdObligationFiscale(), null));
         }
         return notifications;
     }

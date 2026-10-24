@@ -28,4 +28,5 @@ public class CalculFiscalResponse {
     private BigDecimal solde;
     private String explication;
     private List<String> etapesCalcul;
+    private List<String> avertissements;
 }

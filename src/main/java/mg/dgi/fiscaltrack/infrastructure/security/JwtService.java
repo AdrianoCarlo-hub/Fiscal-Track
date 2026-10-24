@@ -21,6 +21,11 @@ public class JwtService {
 
     public JwtService(@Value("${jwt.secret}") String secret,
                        @Value("${jwt.expiration}") long expirationMs) {
+        if (secret == null || secret.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException(
+                    "JWT_SECRET invalide : la cle doit contenir au moins 32 caracteres (256 bits). "
+                            + "Definissez une valeur robuste dans la variable d'environnement JWT_SECRET.");
+        }
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMs = expirationMs;
     }

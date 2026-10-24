@@ -1,46 +1,56 @@
 package mg.dgi.fiscaltrack.application.usecase.calculfiscal;
 
+import mg.dgi.fiscaltrack.application.usecase.admin.ParametreFiscalService;
 import mg.dgi.fiscaltrack.domain.enums.CategorieActivite;
 import mg.dgi.fiscaltrack.domain.exception.CalculFiscalInvalideException;
+import mg.dgi.fiscaltrack.domain.model.DeficitReportable;
 import mg.dgi.fiscaltrack.domain.model.ResultatCalculFiscal;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 /**
  * Calcul de l'Impot sur les Revenus (IR).
  *
- * Regles :
- *   - Taux normal : 20%
- *   - Taux reduit education/sante : 10%
- *   - Minimum selon categorie d'activite
- *   - Deficits reportables max 5 ans (a verifier par l'appelant)
+ * Regles (CDI 01.01.05, 01.01.14 V, 01.01.15) :
+ *   - Taux normal : 20% (CDI 01.01.05)
+ *   - Vente de carburant au detail : 20% sur le benefice, mais MINIMUM de
+ *     perception de 2 pour mille du CA (CDI 01.01.05 VI). Le 2 pour mille n'est
+ *     PAS un taux d'IR sur le benefice.
+ *   - Education / sante : 10% et minimum de 200 000 Ar + 2 pour mille du CA,
+ *     SEULEMENT si l'autorisation d'ouverture est renseignee ; pour la sante,
+ *     en plus seulement sur option (CDI 01.01.05 V, 01.01.14 V). Sans
+ *     autorisation : regime general (20% et minimum de la categorie AUTRES).
+ *   - Minimum selon categorie d'activite (CDI 01.01.05)
+ *   - Organismes sans but lucratif (OSBL) : 10%
+ *   - Deficits reportables : report sur 5 exercices, plus anciens d'abord.
+ *     Le minimum de perception reste du en cas de deficit.
  *   - Arrondi au millier inferieur
  */
 @Service
 public class CalculerIrUseCase {
 
-    private static final BigDecimal TAUX_NORMAL = new BigDecimal("0.20");
-    private static final BigDecimal TAUX_REDUIT = new BigDecimal("0.10");
-    private static final BigDecimal TAUX_CARBURANT = new BigDecimal("0.002");
+    private final ParametreFiscalService parametreFiscalService;
 
-    private static final BigDecimal PART_FIXE_AGRICOLE = new BigDecimal("500000");
-    private static final BigDecimal PART_FIXE_AUTRES = new BigDecimal("1000000");
-    private static final BigDecimal PART_FIXE_EDUCATION_SANTE = new BigDecimal("200000");
-    private static final BigDecimal MINIMUM_ASSOCIE_SARL = new BigDecimal("320000");
-    private static final BigDecimal ABATTEMENT_ASSOCIE_SARL = new BigDecimal("4200000");
+    public CalculerIrUseCase(ParametreFiscalService parametreFiscalService) {
+        this.parametreFiscalService = parametreFiscalService;
+    }
 
     public ResultatCalculFiscal execute(BigDecimal caHT,
                                           BigDecimal chargesDeductibles,
                                           BigDecimal reintegrations,
                                           BigDecimal deductions,
-                                          BigDecimal deficitsReportables,
+                                          List<DeficitReportable> deficitsReportables,
+                                          int anneeExercice,
                                           CategorieActivite categorie,
                                           BigDecimal acomptes,
-                                          int moisActifs) {
+                                          int moisActifs,
+                                          boolean autorisationOuverture,
+                                          boolean optionSante) {
 
         // Validations
         if (caHT == null || caHT.signum() < 0) {
@@ -53,30 +63,45 @@ public class CalculerIrUseCase {
             throw new CalculFiscalInvalideException("La categorie d'activite est obligatoire");
         }
 
-        // Calcul de la base imposable
+        // Regime reduit education / sante uniquement si autorisation (et option sante)
+        boolean regimeReduit = estRegimeEducationSanteReduit(categorie, autorisationOuverture, optionSante);
+
+        // Etapes et avertissements
+        List<String> etapes = new ArrayList<>();
+        List<String> avertissements = new ArrayList<>();
+
+        // Calcul de la base imposable avant imputation des deficits
         BigDecimal base = caHT
                 .subtract(nvl(chargesDeductibles))
                 .add(nvl(reintegrations))
-                .subtract(nvl(deductions))
-                .subtract(nvl(deficitsReportables));
+                .subtract(nvl(deductions));
+        etapes.add("Base avant imputation des deficits : " + base + " Ar");
 
-        // Abattement special pour associe-gerant SARL
+        // Imputation des deficits reportables (5 exercices, plus anciens d'abord)
+        base = imputerDeficits(base, anneeExercice, deficitsReportables, etapes, avertissements);
+
+        // Abattement special pour associe-gerant SARL (CDI 01.01.05)
         if (categorie == CategorieActivite.ASSOCIE_GERANT_SARL) {
-            base = base.subtract(ABATTEMENT_ASSOCIE_SARL);
-            if (base.signum() < 0) base = BigDecimal.ZERO;
+            BigDecimal abattement = parametreFiscalService.getValeur("IR_ABATTEMENT_SARL");
+            base = base.subtract(abattement);
+            etapes.add("Abattement associe-gerant SARL : -" + abattement + " Ar");
         }
 
-        // Arrondi au millier inferieur
+        // La base imposable n'est jamais negative : en cas de deficit, la base
+        // est nulle et le minimum de perception reste du (CDI 01.01.05).
+        if (base.signum() < 0) base = BigDecimal.ZERO;
+
+        // Arrondi au millier inferieur (CDI 01.01.05)
         base = arrondirMillier(base);
 
         // Determination du taux
-        BigDecimal taux = determinerTaux(categorie);
+        BigDecimal taux = determinerTaux(categorie, regimeReduit);
 
         // IR theorique
         BigDecimal irTheorique = base.multiply(taux).setScale(2, RoundingMode.HALF_UP);
 
-        // Minimum de perception
-        BigDecimal minimum = calculerMinimum(caHT, categorie, moisActifs);
+        // Minimum de perception (CDI 01.01.05) : reste du en cas de deficit
+        BigDecimal minimum = calculerMinimum(caHT, categorie, moisActifs, regimeReduit);
 
         // IR du = MAX(irTheorique, minimum)
         BigDecimal irDu = irTheorique.max(minimum);
@@ -95,7 +120,6 @@ public class CalculerIrUseCase {
         }
 
         // Etapes de calcul
-        List<String> etapes = new ArrayList<>();
         etapes.add("Base imposable : " + base + " Ar");
         etapes.add("Taux applique : " + taux.multiply(new BigDecimal("100")) + " %");
         etapes.add("IR theorique : " + irTheorique + " Ar");
@@ -120,47 +144,138 @@ public class CalculerIrUseCase {
                 .solde(solde)
                 .explication("IR = MAX(base x taux ; minimum) - acomptes")
                 .etapesCalcul(etapes)
+                .avertissements(avertissements)
                 .build();
     }
 
-    private BigDecimal determinerTaux(CategorieActivite categorie) {
-        if (categorie == CategorieActivite.EDUCATION || categorie == CategorieActivite.SANTE) {
-            return TAUX_REDUIT;
+    /**
+     * Impute les deficits reportables sur la base imposable.
+     *
+     * Regles (CDI 01.01.10 11°) :
+     *   - le report est limite a 5 exercices ;
+     *   - l'imputation se fait du deficit le plus ancien au plus recent ;
+     *   - un deficit ignore (plus de 5 ans, ou exercice non anterieur) est
+     *     signale mais n'est pas impute.
+     *
+     * @return la base apres imputation (jamais negative)
+     */
+    private BigDecimal imputerDeficits(BigDecimal base,
+                                       int anneeExercice,
+                                       List<DeficitReportable> deficits,
+                                       List<String> etapes,
+                                       List<String> avertissements) {
+        if (deficits == null || deficits.isEmpty()) {
+            return base;
         }
-        if (categorie == CategorieActivite.CARBURANT_DETAIL) {
-            return TAUX_CARBURANT;
+        List<DeficitReportable> valides = new ArrayList<>();
+        for (DeficitReportable d : deficits) {
+            if (d == null || d.montant() == null || d.montant().signum() <= 0) {
+                continue;
+            }
+            int anciennete = anneeExercice - d.anneeOrigine();
+            if (anciennete <= 0) {
+                avertissements.add("Deficit de l'exercice " + d.anneeOrigine()
+                        + " ignore : exercice d'origine non anterieur a l'exercice " + anneeExercice + ".");
+            } else if (anciennete > 5) {
+                avertissements.add("Deficit de l'exercice " + d.anneeOrigine()
+                        + " (" + d.montant() + " Ar) ignore : report limite a 5 exercices (CDI 01.01.10).");
+            } else {
+                valides.add(d);
+            }
         }
-        return TAUX_NORMAL;
+        valides.sort(Comparator.comparingInt(DeficitReportable::anneeOrigine));
+
+        BigDecimal baseRestante = base;
+        for (DeficitReportable d : valides) {
+            if (baseRestante.signum() <= 0) {
+                etapes.add("Deficit " + d.anneeOrigine() + " (" + d.montant()
+                        + " Ar) non impute : base imposable deja epuisee");
+                continue;
+            }
+            BigDecimal impute = baseRestante.min(d.montant());
+            baseRestante = baseRestante.subtract(impute);
+            etapes.add("Imputation deficit " + d.anneeOrigine() + " : -" + impute
+                    + " Ar (solde reporte " + (d.montant().subtract(impute)) + " Ar)");
+        }
+        return baseRestante;
     }
 
-    private BigDecimal calculerMinimum(BigDecimal caHT, CategorieActivite categorie, int moisActifs) {
+    /**
+     * Le regime reduit education/sante (10% et minimum reduit) n'est applicable
+     * que si l'autorisation d'ouverture est renseignee (CDI 01.01.05 V,
+     * 01.01.14 V). Pour la sante, il faut en plus une option explicite.
+     */
+    private boolean estRegimeEducationSanteReduit(CategorieActivite categorie,
+                                                  boolean autorisationOuverture,
+                                                  boolean optionSante) {
+        if (categorie == CategorieActivite.EDUCATION) {
+            return autorisationOuverture;
+        }
+        if (categorie == CategorieActivite.SANTE) {
+            return autorisationOuverture && optionSante;
+        }
+        return false;
+    }
+
+    /**
+     * Determination du taux selon la categorie (CDI 01.01.05, 01.01.14 V, 01.01.15).
+     *   - EDUCATION, SANTE (sous autorisation/option) : 10%
+     *   - OSBL (organismes sans but lucratif) : 10%
+     *   - Toutes les autres (dont CARBURANT_DETAIL) : 20%
+     *
+     * La vente de carburant au detail est imposee a 20% sur le benefice ; le
+     * 2 pour mille du CA est un MINIMUM de perception, pas un taux d'IR.
+     */
+    private BigDecimal determinerTaux(CategorieActivite categorie, boolean regimeReduit) {
+        if (regimeReduit) {
+            return parametreFiscalService.getValeur("IR_TAUX_EDUCATION_SANTE");
+        }
+        if (categorie == CategorieActivite.OSBL) {
+            return parametreFiscalService.getValeur("IR_TAUX_OSBL");
+        }
+        return parametreFiscalService.getValeur("IR_TAUX_NORMAL");
+    }
+
+    /**
+     * Calcul du minimum de perception selon la categorie (CDI 01.01.05).
+     *   - AGRICOLE, ARTISANAL, INDUSTRIEL, MINIER, HOTELIER, TOURISTIQUE : 500 000 + 1% du CA
+     *   - CARBURANT_DETAIL : 0 + 2 pour mille du CA
+     *   - EDUCATION, SANTE (sous autorisation/option) : 200 000 + 2 pour mille du CA
+     *   - EDUCATION, SANTE sans autorisation : minimum de la categorie AUTRES
+     *   - ASSOCIE_GERANT_SARL : 320 000
+     *   - AUTRES : 1 000 000 + 1% du CA
+     */
+    private BigDecimal calculerMinimum(BigDecimal caHT, CategorieActivite categorie,
+                                       int moisActifs, boolean regimeReduit) {
         BigDecimal partFixe;
         BigDecimal tauxVariable;
 
-        switch (categorie) {
-            case AGRICOLE:
-            case ARTISANAL:
-            case INDUSTRIEL:
-            case MINIER:
-            case HOTELIER:
-            case TOURISTIQUE:
-                partFixe = PART_FIXE_AGRICOLE;
-                tauxVariable = new BigDecimal("0.01");
-                break;
-            case CARBURANT_DETAIL:
-                partFixe = BigDecimal.ZERO;
-                tauxVariable = TAUX_CARBURANT;
-                break;
-            case EDUCATION:
-            case SANTE:
-                partFixe = PART_FIXE_EDUCATION_SANTE;
-                tauxVariable = new BigDecimal("0.002");
-                break;
-            case ASSOCIE_GERANT_SARL:
-                return MINIMUM_ASSOCIE_SARL;
-            default:
-                partFixe = PART_FIXE_AUTRES;
-                tauxVariable = new BigDecimal("0.01");
+        if (regimeReduit) {
+            partFixe = parametreFiscalService.getValeur("IR_PART_FIXE_EDUCATION_SANTE");
+            tauxVariable = parametreFiscalService.getValeur("IR_TAUX_VARIABLE_EDUCATION");
+        } else {
+            switch (categorie) {
+                case AGRICOLE:
+                case ARTISANAL:
+                case INDUSTRIEL:
+                case MINIER:
+                case HOTELIER:
+                case TOURISTIQUE:
+                    partFixe = parametreFiscalService.getValeur("IR_PART_FIXE_AGRICOLE");
+                    tauxVariable = parametreFiscalService.getValeur("IR_TAUX_VARIABLE_AGRICOLE");
+                    break;
+                case CARBURANT_DETAIL:
+                    // Minimum de perception : 2 pour mille du CA (CDI 01.01.05 VI)
+                    partFixe = BigDecimal.ZERO;
+                    tauxVariable = parametreFiscalService.getValeur("IR_TAUX_CARBURANT");
+                    break;
+                case ASSOCIE_GERANT_SARL:
+                    return parametreFiscalService.getValeur("IR_MINIMUM_SARL");
+                default:
+                    // EDUCATION/SANTE sans autorisation, et toutes les autres categories
+                    partFixe = parametreFiscalService.getValeur("IR_PART_FIXE_AUTRES");
+                    tauxVariable = parametreFiscalService.getValeur("IR_TAUX_VARIABLE_AGRICOLE");
+            }
         }
 
         // Proratisation de la part fixe
@@ -171,6 +286,9 @@ public class CalculerIrUseCase {
         return partFixeProratisee.add(caHT.multiply(tauxVariable));
     }
 
+    /**
+     * Arrondi au millier inferieur (CDI 01.01.05).
+     */
     private BigDecimal arrondirMillier(BigDecimal valeur) {
         return valeur.divide(BigDecimal.valueOf(1000), 0, RoundingMode.FLOOR)
                 .multiply(BigDecimal.valueOf(1000));

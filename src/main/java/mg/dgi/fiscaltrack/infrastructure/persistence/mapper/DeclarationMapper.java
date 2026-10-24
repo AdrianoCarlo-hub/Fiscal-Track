@@ -29,8 +29,11 @@ public class DeclarationMapper {
                 .montantMinimum(e.getMontantMinimum())
                 .acomptesDeduits(e.getAcomptesDeduits())
                 .creditFiscal(e.getCreditFiscal())
+                .creditUtilise(e.getCreditUtilise())
                 .categorieActivite(parseCategorieActivite(e.getCategorieActivite()))
                 .detailCalcul(e.getDetailCalcul())
+                .donneesSaisies(e.getDonneesSaisies())
+                .motifRejet(e.getMotifRejet())
                 .build();
     }
 
@@ -54,8 +57,11 @@ public class DeclarationMapper {
                 .montantMinimum(d.getMontantMinimum())
                 .acomptesDeduits(d.getAcomptesDeduits())
                 .creditFiscal(d.getCreditFiscal())
+                .creditUtilise(d.getCreditUtilise())
                 .categorieActivite(d.getCategorieActivite() == null ? null : d.getCategorieActivite().name())
                 .detailCalcul(d.getDetailCalcul())
+                .donneesSaisies(d.getDonneesSaisies())
+                .motifRejet(d.getMotifRejet())
                 .build();
     }
 

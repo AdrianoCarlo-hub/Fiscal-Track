@@ -5,6 +5,7 @@ import mg.dgi.fiscaltrack.domain.model.Declaration;
 import mg.dgi.fiscaltrack.infrastructure.persistence.mapper.DeclarationMapper;
 import mg.dgi.fiscaltrack.infrastructure.persistence.repository.DeclarationJpaRepository;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
@@ -43,6 +44,39 @@ public class DeclarationRepositoryAdapter implements DeclarationRepositoryPort {
     @Override
     public Optional<Declaration> findByIdObligationFiscale(Long idObligationFiscale) {
         return jpaRepository.findByIdObligationFiscale(idObligationFiscale).map(mapper::toDomain);
+    }
+
+    @Override
+    public Optional<Declaration> findDerniereDeclarationByNif(String nif) {
+        return jpaRepository.findLatestByNif(nif, PageRequest.of(0, 1))
+                .stream()
+                .findFirst()
+                .map(mapper::toDomain);
+    }
+
+    @Override
+    public Optional<Declaration> findDerniereDeclarationByNifEtImpot(String nif, String codeImpot) {
+        return jpaRepository.findLatestByNifAndCodeImpot(nif, codeImpot, PageRequest.of(0, 1))
+                .stream()
+                .findFirst()
+                .map(mapper::toDomain);
+    }
+
+    @Override
+    public Optional<Declaration> findDerniereDeclarationValideeAvantExercice(String nif, String codeImpot,
+                                                                             int exercice) {
+        return jpaRepository.findValideeByNifEtImpotAvantPeriode(
+                        nif, codeImpot, String.valueOf(exercice), PageRequest.of(0, 1))
+                .stream()
+                .findFirst()
+                .map(mapper::toDomain);
+    }
+
+    @Override
+    public List<Declaration> findByNif(String nif) {
+        return jpaRepository.findByNif(nif).stream()
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
     }
 
     @Override

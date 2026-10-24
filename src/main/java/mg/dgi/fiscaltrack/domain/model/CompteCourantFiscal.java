@@ -23,6 +23,7 @@ public class CompteCourantFiscal {
     private OffsetDateTime dateCreationLigne;
     private BigDecimal montantPrincipal;
     private BigDecimal montantPenalites;
+    private BigDecimal montantAmende;
     private BigDecimal montantPaye;
     private BigDecimal montantTotalDu;
     private BigDecimal resteARecouvrer;

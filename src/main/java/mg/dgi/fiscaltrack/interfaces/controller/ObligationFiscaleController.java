@@ -49,11 +49,14 @@ public class ObligationFiscaleController {
 
     @GetMapping("/{id}")
     public ObligationResponse parId(@PathVariable Long id) {
-        return toResponse(consulterUseCase.parId(id));
+        ObligationFiscale obligation = consulterUseCase.parId(id);
+        UtilisateurConnecte.verifierPropriete(obligation.getNif(), "cette obligation fiscale");
+        return toResponse(obligation);
     }
 
     @GetMapping("/contribuable/{nif}")
     public List<ObligationResponse> parContribuable(@PathVariable String nif) {
+        UtilisateurConnecte.verifierPropriete(nif, "cette liste d'obligations");
         return consulterUseCase.parContribuable(nif).stream().map(this::toResponse).toList();
     }
 
@@ -71,7 +74,11 @@ public class ObligationFiscaleController {
 
     @GetMapping("/echeances-proches")
     public List<ObligationResponse> echeancesProches(@RequestParam(defaultValue = "7") int jours) {
-        return identifierRetardsUseCase.echeancesProches(jours).stream().map(this::toResponse).toList();
+        String nifConnecte = UtilisateurConnecte.nifSiContribuable();
+        return identifierRetardsUseCase.echeancesProches(jours).stream()
+                .filter(o -> nifConnecte == null || nifConnecte.equals(o.getNif()))
+                .map(this::toResponse)
+                .toList();
     }
 
     @PostMapping("/generer")

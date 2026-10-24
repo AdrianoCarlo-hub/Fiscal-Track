@@ -1,15 +1,15 @@
 package mg.dgi.fiscaltrack.application.usecase.notification;
 
-import mg.dgi.fiscaltrack.application.port.out.NotificationRepositoryPort;
 import mg.dgi.fiscaltrack.application.port.out.ObligationFiscaleRepositoryPort;
-import mg.dgi.fiscaltrack.domain.enums.CanalEnvoi;
-import mg.dgi.fiscaltrack.domain.enums.StatutEnvoi;
+import mg.dgi.fiscaltrack.application.port.out.TypeImpotRepositoryPort;
+import mg.dgi.fiscaltrack.domain.enums.StatutDeclaration;
 import mg.dgi.fiscaltrack.domain.enums.TypeRelance;
 import mg.dgi.fiscaltrack.domain.model.Notification;
 import mg.dgi.fiscaltrack.domain.model.ObligationFiscale;
 import org.springframework.stereotype.Service;
 
-import java.time.OffsetDateTime;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,49 +17,56 @@ import java.util.List;
 public class GenererRappelUseCase {
 
     private final ObligationFiscaleRepositoryPort obligationRepositoryPort;
-    private final NotificationRepositoryPort notificationRepositoryPort;
+    private final TypeImpotRepositoryPort typeImpotRepositoryPort;
+    private final CreerNotificationUseCase creerNotificationUseCase;
+    private final Clock clock;
 
     public GenererRappelUseCase(ObligationFiscaleRepositoryPort obligationRepositoryPort,
-                                 NotificationRepositoryPort notificationRepositoryPort) {
+                                TypeImpotRepositoryPort typeImpotRepositoryPort,
+                                CreerNotificationUseCase creerNotificationUseCase,
+                                Clock clock) {
         this.obligationRepositoryPort = obligationRepositoryPort;
-        this.notificationRepositoryPort = notificationRepositoryPort;
+        this.typeImpotRepositoryPort = typeImpotRepositoryPort;
+        this.creerNotificationUseCase = creerNotificationUseCase;
+        this.clock = clock;
     }
 
     /**
      * RC17 : genere les rappels preventifs J-7 et J-1 pour les obligations
-     * dont l'echeance approche. Les notifications sont creees au statut
-     * EN_ATTENTE, elles seront envoyees par EnvoyerNotificationUseCase.
+     * dont l'echeance approche (date du jour dans le fuseau de l'application).
+     * Les notifications sont creees au statut EN_ATTENTE sur chaque canal
+     * disponible, sans doublon.
      */
     public List<Notification> execute(int nombreJoursAvantEcheance) {
         TypeRelance typeRelance = TypeRelance.fromCode("J-" + nombreJoursAvantEcheance);
 
+        LocalDate aujourdHui = LocalDate.now(clock);
         List<ObligationFiscale> obligations = obligationRepositoryPort
-                .findEcheancesProches(java.time.LocalDate.now(), nombreJoursAvantEcheance);
+                .findEcheancesProches(aujourdHui, nombreJoursAvantEcheance);
 
         List<Notification> notifications = new ArrayList<>();
         for (ObligationFiscale obligation : obligations) {
-            if (obligation.getStatutDeclaration() != mg.dgi.fiscaltrack.domain.enums.StatutDeclaration.ATTENTE) {
+            if (obligation.getStatutDeclaration() != StatutDeclaration.ATTENTE) {
                 continue;
             }
 
-            String message = String.format(
-                    "Rappel : votre obligation %s pour la periode %s arrive a echeance le %s.",
-                    obligation.getCodeImpot(),
-                    obligation.getPeriodeFiscale(),
-                    obligation.getDateLimiteReelle());
-
-            Notification notification = Notification.builder()
-                    .idObligationFiscale(obligation.getIdObligationFiscale())
+            ContexteNotification contexte = ContexteNotification.builder()
                     .nif(obligation.getNif())
-                    .typeRelance(typeRelance)
-                    .messageContenu(message)
-                    .dateEnvoiPrevue(OffsetDateTime.now())
-                    .canalEnvoi(CanalEnvoi.EMAIL)
-                    .statutEnvoi(StatutEnvoi.EN_ATTENTE)
+                    .codeImpot(obligation.getCodeImpot())
+                    .nomImpot(nomImpot(obligation.getCodeImpot()))
+                    .periode(obligation.getPeriodeFiscale())
+                    .echeance(obligation.getDateLimiteReelle())
                     .build();
 
-            notifications.add(notificationRepositoryPort.save(notification));
+            notifications.addAll(creerNotificationUseCase.creerAutomatique(
+                    typeRelance, contexte, obligation.getIdObligationFiscale(), null));
         }
         return notifications;
+    }
+
+    private String nomImpot(String codeImpot) {
+        return typeImpotRepositoryPort.findByCodeImpot(codeImpot)
+                .map(t -> t.getNomImpot())
+                .orElse(codeImpot);
     }
 }

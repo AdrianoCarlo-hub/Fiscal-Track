@@ -1,6 +1,7 @@
 package mg.dgi.fiscaltrack.application.usecase.typeimpot;
 
 import mg.dgi.fiscaltrack.application.port.out.TypeImpotRepositoryPort;
+import mg.dgi.fiscaltrack.application.usecase.historique.EnregistrerActionUseCase;
 import mg.dgi.fiscaltrack.domain.enums.Periodicite;
 import mg.dgi.fiscaltrack.domain.model.TypeImpot;
 import org.springframework.stereotype.Service;
@@ -9,12 +10,19 @@ import org.springframework.stereotype.Service;
 public class AjouterTypeImpotUseCase {
 
     private final TypeImpotRepositoryPort repositoryPort;
+    private final EnregistrerActionUseCase enregistrerActionUseCase;
 
-    public AjouterTypeImpotUseCase(TypeImpotRepositoryPort repositoryPort) {
+    public AjouterTypeImpotUseCase(TypeImpotRepositoryPort repositoryPort,
+                                   EnregistrerActionUseCase enregistrerActionUseCase) {
         this.repositoryPort = repositoryPort;
+        this.enregistrerActionUseCase = enregistrerActionUseCase;
     }
 
     public TypeImpot execute(TypeImpot typeImpot) {
+        return execute(typeImpot, null);
+    }
+
+    public TypeImpot execute(TypeImpot typeImpot, String auteur) {
         if (typeImpot.getCodeImpot() == null || typeImpot.getCodeImpot().isBlank()) {
             throw new IllegalArgumentException("Le code impot est obligatoire");
         }
@@ -30,7 +38,14 @@ public class AjouterTypeImpotUseCase {
 
         validerEcheance(typeImpot);
 
-        return repositoryPort.save(typeImpot);
+        TypeImpot saved = repositoryPort.save(typeImpot);
+
+        enregistrerActionUseCase.execute(
+                auteur == null ? "SYSTEME" : auteur,
+                "CREATION_TYPE_IMPOT",
+                "Creation du type d'impot " + saved.getCodeImpot()
+                        + " (" + saved.getNomImpot() + ")");
+        return saved;
     }
 
     private void validerEcheance(TypeImpot typeImpot) {

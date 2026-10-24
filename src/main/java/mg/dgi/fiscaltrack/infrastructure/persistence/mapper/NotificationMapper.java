@@ -22,10 +22,16 @@ public class NotificationMapper {
                 .idAgent(e.getIdAgent())
                 .typeRelance(parseTypeRelance(e.getTypeRelance()))
                 .messageContenu(e.getMessageContenu())
+                .objetEmail(e.getObjetEmail())
+                .messageSms(e.getMessageSms())
                 .dateEnvoiPrevue(e.getDateEnvoiPrevue())
                 .dateEnvoiEffective(e.getDateEnvoiEffective())
                 .canalEnvoi(parseCanalEnvoi(e.getCanalEnvoi()))
                 .statutEnvoi(parseStatutEnvoi(e.getStatutEnvoi()))
+                .nbTentatives(e.getNbTentatives())
+                .derniereTentative(e.getDerniereTentative())
+                .erreurEnvoi(e.getErreurEnvoi())
+                .lu(e.getLu())
                 .createdAt(e.getCreatedAt())
                 .build();
     }
@@ -42,10 +48,16 @@ public class NotificationMapper {
                 .idAgent(d.getIdAgent())
                 .typeRelance(d.getTypeRelance() == null ? null : d.getTypeRelance().getCode())
                 .messageContenu(d.getMessageContenu())
+                .objetEmail(d.getObjetEmail())
+                .messageSms(d.getMessageSms())
                 .dateEnvoiPrevue(d.getDateEnvoiPrevue())
                 .dateEnvoiEffective(d.getDateEnvoiEffective())
                 .canalEnvoi(d.getCanalEnvoi() == null ? null : d.getCanalEnvoi().name())
                 .statutEnvoi(d.getStatutEnvoi() == null ? null : d.getStatutEnvoi().name())
+                .nbTentatives(d.getNbTentatives() == null ? 0 : d.getNbTentatives())
+                .derniereTentative(d.getDerniereTentative())
+                .erreurEnvoi(d.getErreurEnvoi())
+                .lu(Boolean.TRUE.equals(d.getLu()))
                 .createdAt(d.getCreatedAt())
                 .build();
     }

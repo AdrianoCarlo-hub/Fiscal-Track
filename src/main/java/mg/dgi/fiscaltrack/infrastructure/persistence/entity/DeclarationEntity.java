@@ -70,9 +70,18 @@ public class DeclarationEntity {
     @Column(name = "credit_fiscal", precision = 15, scale = 2)
     private BigDecimal creditFiscal;
 
+    @Column(name = "credit_utilise", precision = 15, scale = 2)
+    private BigDecimal creditUtilise;
+
     @Column(name = "categorie_activite", length = 50)
     private String categorieActivite;
 
     @Column(name = "detail_calcul", columnDefinition = "TEXT")
     private String detailCalcul;
+
+    @Column(name = "donnees_saisies", columnDefinition = "TEXT")
+    private String donneesSaisies;
+
+    @Column(name = "motif_rejet", columnDefinition = "TEXT")
+    private String motifRejet;
 }

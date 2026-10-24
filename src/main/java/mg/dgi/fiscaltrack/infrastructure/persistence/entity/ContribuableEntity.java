@@ -68,6 +68,27 @@ public class ContribuableEntity {
     @Column(name = "date_immatriculation", nullable = false)
     private LocalDate dateImmatriculation;
 
+    @Column(name = "autorisation_ouverture")
+    private Boolean autorisationOuverture;
+
+    @Column(name = "option_sante")
+    private Boolean optionSante;
+
+    @Column(name = "date_cloture")
+    private LocalDate dateCloture;
+
+    @Column(name = "categorie_activite", length = 50)
+    private String categorieActivite;
+
+    @Column(name = "canal_prefere", length = 255)
+    private String canalPrefere;
+
+    @Column(name = "accepte_email")
+    private Boolean accepteEmail;
+
+    @Column(name = "accepte_sms")
+    private Boolean accepteSms;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 

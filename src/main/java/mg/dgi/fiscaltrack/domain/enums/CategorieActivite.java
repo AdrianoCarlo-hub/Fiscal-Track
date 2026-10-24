@@ -17,5 +17,6 @@ public enum CategorieActivite {
     EDUCATION,
     SANTE,
     ASSOCIE_GERANT_SARL,
+    OSBL,
     AUTRE
 }

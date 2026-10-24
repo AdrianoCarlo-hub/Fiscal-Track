@@ -45,6 +45,9 @@ public class CompteCourantFiscalEntity {
     @Column(name = "montant_penalites", nullable = false, precision = 15, scale = 2)
     private BigDecimal montantPenalites;
 
+    @Column(name = "montant_amende", nullable = false, precision = 15, scale = 2)
+    private BigDecimal montantAmende;
+
     @Column(name = "montant_paye", nullable = false, precision = 15, scale = 2)
     private BigDecimal montantPaye;
 

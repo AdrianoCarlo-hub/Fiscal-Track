@@ -25,6 +25,7 @@ public class CalendrierController {
     @GetMapping("/{nif}")
     public List<ObligationResponse> calendrierParAnnee(@PathVariable String nif,
                                                         @RequestParam(required = false) Integer annee) {
+        UtilisateurConnecte.verifierPropriete(nif, "ce calendrier fiscal");
         int anneeCible = annee != null ? annee : LocalDate.now().getYear();
         return consulterUseCase.parContribuableEtAnnee(nif, anneeCible)
                 .stream().map(this::toResponse).toList();
@@ -36,6 +37,7 @@ public class CalendrierController {
     @GetMapping("/{nif}/prochaines")
     public List<ObligationResponse> prochainesEcheances(@PathVariable String nif,
                                                          @RequestParam(defaultValue = "7") int jours) {
+        UtilisateurConnecte.verifierPropriete(nif, "ces échéances");
         return consulterUseCase.echeancesProchaines(nif, jours)
                 .stream().map(this::toResponse).toList();
     }

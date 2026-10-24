@@ -36,4 +36,10 @@ public interface CompteCourantFiscalRepositoryPort {
      * dernier changement de statut (updated_at) est anterieur au seuil fourni.
      */
     List<CompteCourantFiscal> findEligiblesAtd(LocalDate seuilUpdatedAt);
+
+    /**
+     * Somme des montants reellement payes pour les acomptes d'un impot
+     * (ACOMPTE_IR / ACOMPTE_IS) sur un exercice donne.
+     */
+    java.math.BigDecimal sommeMontantPayeAcomptes(String nif, String codeImpotAcompte, int exercice);
 }
